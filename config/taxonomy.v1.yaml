@@ -1,0 +1,103 @@
+# ミス分類定義 v1（初期粒度）
+# 設計: docs/design/04-miss-taxonomy.md
+# 分類軸・判定基準はこのファイルの編集のみで追加・変更できる（コード変更不要）。
+
+version: 1
+locale: ja
+
+# ---------------------------------------------------------------
+# 分類軸（dimensions）
+#   source: cv.*  → CVイベントストリームのフィールドをそのまま使う
+#   source: rule  → rules の判定式で導出する
+# ---------------------------------------------------------------
+dimensions:
+  - id: shot_type
+    source: cv.shot.type
+    values: [serve, forehand, backhand, volley_smash]
+    labels_ja:
+      serve: サーブ
+      forehand: フォアハンド
+      backhand: バックハンド
+      volley_smash: ボレー・スマッシュ
+
+  - id: outcome
+    source: cv.terminal.type
+    values: [net, out, winner, in_play, unknown]
+    min_confidence: 0.6        # これ未満は unknown に落とす
+    labels_ja:
+      net: ネット
+      out: アウト
+      winner: ウィナー
+      in_play: ラリー継続
+      unknown: 未分類
+
+  - id: pressure
+    source: rule
+    values: [forced, unforced]
+    labels_ja:
+      forced: 強制ミス（相手に崩された）
+      unforced: 非強制ミス（凡ミス）
+    rules:
+      - value: forced
+        when: >
+          prev_opponent_shot.speed_kmh > thresholds.forcing_speed
+          or prev_opponent_shot.landing_depth > thresholds.forcing_depth
+      - value: unforced
+        when: default
+
+# ---------------------------------------------------------------
+# 判断基準のパラメータ（「何がミスか・甘い球か・良いショットか」）
+# ---------------------------------------------------------------
+thresholds:
+  forcing_speed: 95        # km/h。これ以上の球を受けた後のミスは forced
+  forcing_depth: 0.80      # ベースラインからの正規化深度。深い球を受けた後のミスは forced
+  weak_ball_depth: 0.45    # これより浅い返球は「甘い球」タグ
+  rally_long: 9            # このショット数以上のラリーはハイライト候補
+  winner_min_confidence: 0.75  # ウィナー断定に要求する信頼度
+
+# ---------------------------------------------------------------
+# ラベルと重要度（ハイライト選定・アドバイス優先度に使用）
+# match は軸値の部分一致。上から順に最初にマッチしたものを採用。
+# ---------------------------------------------------------------
+labels:
+  - match: { outcome: winner }
+    label_ja: ウィナー
+    importance: high
+    highlight: true
+
+  - match: { shot_type: serve, outcome: [net, out] }
+    label_ja: サーブミス
+    importance: medium
+    stat_key: serve_fault
+
+  - match: { shot_type: backhand, outcome: [net, out], pressure: unforced }
+    label_ja: バックハンドの凡ミス
+    importance: high
+    highlight: true
+
+  - match: { shot_type: forehand, outcome: [net, out], pressure: unforced }
+    label_ja: フォアハンドの凡ミス
+    importance: high
+    highlight: true
+
+  - match: { outcome: [net, out], pressure: forced }
+    label_ja: 強制ミス
+    importance: low
+
+  - match: { outcome: unknown }
+    label_ja: 未分類ポイント
+    importance: none
+    exclude_from_stats: true   # 分母から除外し「未分類 n 件」として別表示
+
+# ---------------------------------------------------------------
+# タグ（軸とは独立に付与される追加属性）
+# ---------------------------------------------------------------
+tags:
+  - id: weak_ball
+    label_ja: 甘い球
+    when: "shot.landing_depth < thresholds.weak_ball_depth and shot.type != serve"
+  - id: long_rally
+    label_ja: ロングラリー
+    scope: point
+    when: "point.shot_count >= thresholds.rally_long"
+    highlight: true

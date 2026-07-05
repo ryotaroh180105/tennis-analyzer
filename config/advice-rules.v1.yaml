@@ -1,0 +1,71 @@
+# アドバイス発火ルール v1
+# 設計: docs/design/07-advice-delivery.md
+# 「何を言うか」をここで宣言し、「どう言うか」はClaude APIが生成する。
+
+version: 1
+
+settings:
+  max_trigger_notifications_per_week: 1   # トリガー型（③）の週上限
+  weekly_digest:
+    default_schedule: "SUN 20:00 Asia/Tokyo"
+    always_include_positive: true         # 改善点を必ず1つ含める
+
+triggers:
+  - id: backhand_unforced_trend
+    description: バックハンド凡ミス率が直近3試合で上昇傾向
+    when: "trend(stat('backhand', 'unforced_error_rate'), matches=3) > 0.05"
+    priority: 80
+    cooldown_days: 14
+    advice_template: backhand_consistency
+
+  - id: forehand_unforced_trend
+    description: フォアハンド凡ミス率が直近3試合で上昇傾向
+    when: "trend(stat('forehand', 'unforced_error_rate'), matches=3) > 0.05"
+    priority: 75
+    cooldown_days: 14
+    advice_template: forehand_consistency
+
+  - id: double_fault_spike
+    description: 直近試合でダブルフォルトが急増
+    when: "last_match.double_faults >= 5 and avg(double_faults, matches=5) < 3"
+    priority: 90
+    cooldown_days: 7
+    advice_template: second_serve_practice
+
+  - id: short_rally_losses
+    description: 短いラリー（1-4本）での失点が多い＝立ち上がりのミス
+    when: "last_match.loss_rate_by_rally('1-4') > 0.65 and last_match.points >= 40"
+    priority: 60
+    cooldown_days: 21
+    advice_template: early_rally_focus
+
+  - id: improvement_praise
+    description: 前回指摘した指標が改善（ポジティブ強化）
+    when: "improved_since_last_advice()"
+    priority: 100          # 改善の承認は最優先
+    cooldown_days: 0
+    advice_template: praise_improvement
+
+# テンプレートはClaude APIへの生成指示のスケルトン。
+# {{...}} はアドバイスエンジンが集計値を埋めてからLLMに渡す。
+advice_templates:
+  backhand_consistency:
+    theme: バックハンドの安定
+    facts: "直近3試合のバックハンド凡ミス率: {{trend_values}}"
+    drill_hints: [クロスラリー20本継続, 高い軌道で深さ優先]
+  forehand_consistency:
+    theme: フォアハンドの安定
+    facts: "直近3試合のフォアハンド凡ミス率: {{trend_values}}"
+    drill_hints: [ショートラリーからの段階ビルドアップ]
+  second_serve_practice:
+    theme: セカンドサーブ
+    facts: "前試合ダブルフォルト {{count}} 本（平常時平均 {{baseline}} 本）"
+    drill_hints: [スピンサーブの回転量優先練習, ターゲット練習は枠を広めに]
+  early_rally_focus:
+    theme: ラリー立ち上がり
+    facts: "1-4本ラリーでの失点率 {{rate}}"
+    drill_hints: [リターンからの3球目まで限定の形式練習]
+  praise_improvement:
+    theme: 改善の確認
+    facts: "{{metric_label}} が {{before}} → {{after}} に改善"
+    drill_hints: []

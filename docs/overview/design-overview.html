@@ -1,0 +1,279 @@
+<title>テニス動画分析アプリ 設計概要</title>
+<style>
+  :root {
+    --bg: #f7f8f6;
+    --surface: #fdfdfc;
+    --ink: #101311;
+    --ink-2: #4d5450;
+    --ink-3: #838b85;
+    --line: #e0e4de;
+    --accent: #2a78d6;      /* コートブルー / series-1 */
+    --accent-soft: #e3eefb;
+    --ball: #b9c400;        /* オプティックイエロー（線・小面積のみ） */
+    --good: #0ca30c;
+    --phase0: #2a78d6; --phase1: #1baf7a; --phase2: #4a3aa7; --phase3: #e34948;
+    --card-shadow: 0 1px 2px rgba(16,19,17,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101312; --surface: #191d1b; --ink: #f2f4f1; --ink-2: #b8bfba;
+      --ink-3: #848b86; --line: #2b302d; --accent: #3987e5; --accent-soft: #14263c;
+      --ball: #d6e34a; --good: #1db954;
+      --phase0: #3987e5; --phase1: #199e70; --phase2: #9085e9; --phase3: #e66767;
+      --card-shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101312; --surface: #191d1b; --ink: #f2f4f1; --ink-2: #b8bfba;
+    --ink-3: #848b86; --line: #2b302d; --accent: #3987e5; --accent-soft: #14263c;
+    --ball: #d6e34a; --good: #1db954;
+    --phase0: #3987e5; --phase1: #199e70; --phase2: #9085e9; --phase3: #e66767;
+    --card-shadow: none;
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f8f6; --surface: #fdfdfc; --ink: #101311; --ink-2: #4d5450;
+    --ink-3: #838b85; --line: #e0e4de; --accent: #2a78d6; --accent-soft: #e3eefb;
+    --ball: #b9c400; --good: #0ca30c;
+    --phase0: #2a78d6; --phase1: #1baf7a; --phase2: #4a3aa7; --phase3: #e34948;
+    --card-shadow: 0 1px 2px rgba(16,19,17,.05);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; font-size: 15px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 48px 24px 96px; }
+
+  /* ---- header ---- */
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 28px; margin-bottom: 40px; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: .18em; color: var(--ink-3);
+    text-transform: uppercase; margin: 0 0 10px;
+  }
+  h1 { font-size: 30px; line-height: 1.35; margin: 0 0 12px; text-wrap: balance; font-weight: 750; }
+  h1 .court { color: var(--accent); }
+  .lede { color: var(--ink-2); max-width: 42em; margin: 0 0 18px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-size: 12px; padding: 3px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+  }
+  .chip.hot { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  /* ---- sections ---- */
+  section { margin-bottom: 52px; }
+  h2 {
+    font-size: 13px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-3); margin: 0 0 6px; font-weight: 650;
+  }
+  h2::before { content: ""; display: inline-block; width: 18px; height: 3px;
+    background: var(--ball); margin-right: 10px; vertical-align: middle; }
+  .h2-sub { font-size: 20px; font-weight: 700; margin: 0 0 18px; text-wrap: balance; }
+
+  /* ---- decision table ---- */
+  .tbl-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--card-shadow); }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+  th, td { text-align: left; padding: 12px 16px; vertical-align: top; }
+  thead th { font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-3); border-bottom: 1px solid var(--line); font-weight: 650; }
+  tbody tr + tr td { border-top: 1px solid var(--line); }
+  td.q { color: var(--ink-2); width: 30%; }
+  td.a { font-weight: 600; }
+  td.num { color: var(--ink-3); font-variant-numeric: tabular-nums; width: 2em; }
+
+  /* ---- roadmap ---- */
+  .phases { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .phase {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px 18px; border-top: 4px solid var(--pc, var(--accent));
+    box-shadow: var(--card-shadow);
+  }
+  .phase h3 { margin: 0 0 2px; font-size: 14px; }
+  .phase .tag { font-size: 11px; letter-spacing: .1em; color: var(--pc, var(--accent));
+    font-weight: 700; text-transform: uppercase; }
+  .phase p { margin: 8px 0 0; font-size: 13px; color: var(--ink-2); line-height: 1.65; }
+  .phase.mvp { position: relative; }
+  .phase.mvp::after {
+    content: "MVP"; position: absolute; top: 12px; right: 12px; font-size: 10px;
+    font-weight: 800; letter-spacing: .1em; color: var(--bg); background: var(--pc);
+    padding: 2px 8px; border-radius: 999px;
+  }
+
+  /* ---- pipeline ---- */
+  .pipe { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+  .stage {
+    flex: 1 1 130px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px; font-size: 12.5px; position: relative;
+    box-shadow: var(--card-shadow);
+  }
+  .stage b { display: block; font-size: 13px; margin-bottom: 2px; }
+  .stage small { color: var(--ink-3); }
+  .stage .ph { font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+  .stage.p0 .ph { color: var(--phase0); }
+  .stage.p1 .ph { color: var(--phase1); }
+  .pipe-note { font-size: 13px; color: var(--ink-2); margin-top: 12px; }
+  .flow { display: grid; gap: 8px; margin-top: 16px; }
+  .flow-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .flow-box {
+    background: var(--accent-soft); border: 1px solid var(--accent); color: var(--ink);
+    border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600;
+  }
+  .flow-box small { display: block; font-weight: 400; color: var(--ink-2); font-size: 11.5px; }
+  .arrow { color: var(--ink-3); font-size: 14px; }
+
+  /* ---- principles ---- */
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; box-shadow: var(--card-shadow); }
+  .card h3 { margin: 0 0 6px; font-size: 14.5px; }
+  .card p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+  .card h3 .no { color: var(--ball); font-weight: 800; margin-right: 6px; }
+
+  /* ---- diff table ---- */
+  .diff td.strong { color: var(--good); font-weight: 650; }
+
+  footer { border-top: 1px solid var(--line); padding-top: 20px; color: var(--ink-3); font-size: 12.5px; }
+  footer code { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font-size: 11.5px; }
+  a { color: var(--accent); }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Design Brief → Architecture / 2026-07-05</p>
+    <h1>テニス動画分析アプリ<span class="court"> 設計概要</span></h1>
+    <p class="lede">スマホ1台の動画から、編集済み動画・スタッツ・ミス分析・継続アドバイスを自動生成する。
+    設計ブリーフの7論点すべてに結論を出し、リポジトリの <a href="#docs">docs/design/</a> に詳細を分冊した。</p>
+    <div class="chips">
+      <span class="chip hot">MVP = 編集自動化（Phase 0）</span>
+      <span class="chip">粒度はYAMLで可変</span>
+      <span class="chip">スマホ1台撮影が前提</span>
+      <span class="chip">日本語ネイティブ</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>Decisions</h2>
+    <p class="h2-sub">7つの論点への結論</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th></th><th>論点</th><th>決定</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td class="q">MVPのスコープ</td>
+            <td class="a">試合分析（①）から。ただし初回リリースは「デッドタイムカット＋共有」のみに絞る。サーブ解析（②）はPhase 3</td></tr>
+          <tr><td class="num">2</td><td class="q">撮影要件</td>
+            <td class="a">強制せず「推奨＋アップロード時プリフライト自動判定＋改善ガイド」の3段構え</td></tr>
+          <tr><td class="num">3</td><td class="q">ミス分類の初期粒度</td>
+            <td class="a">ショット4分類 × 結果 × 強制/非強制。軸・判定式・しきい値はすべて taxonomy.yaml に外出し</td></tr>
+          <tr><td class="num">4</td><td class="q">外部ツール連携</td>
+            <td class="a">MediaPipe Pose・TrackNet系・FFmpeg・Claude API（claude-opus-4-8）・R2/S3・LINE Messaging API</td></tr>
+          <tr><td class="num">5</td><td class="q">プロ比較の参照データ</td>
+            <td class="a">放送映像は権利リスクで不採用。バイオメカ文献レンジのYAML化＋契約コーチ撮り下ろしの2本立て</td></tr>
+          <tr><td class="num">6</td><td class="q">継続アドバイス配信</td>
+            <td class="a">即時＋週次ダイジェスト＋トリガー型（週1上限）。チャネルはLINE主軸。発火条件もYAML</td></tr>
+          <tr><td class="num">7</td><td class="q">スコア自動判定</td>
+            <td class="a">自動化しない（SwingVisionの精度問題を回避）。ポイント区切りでワンタップ入力の半自動方式</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Roadmap</h2>
+    <p class="h2-sub">フェーズ計画 — 編集の価値が先、分析の価値が後</p>
+    <div class="phases">
+      <div class="phase mvp" style="--pc: var(--phase0)">
+        <span class="tag">Phase 0</span>
+        <h3>編集自動化</h3>
+        <p>アップロード → ポイント区間検出 → デッドタイムカット → 共有リンク。スタッツ精度に依存しない最初の価値。</p>
+      </div>
+      <div class="phase" style="--pc: var(--phase1)">
+        <span class="tag">Phase 1</span>
+        <h3>スタッツ＆ハイライト</h3>
+        <p>ショット分類、ミス分類ルールエンジン、ハイライト自動生成、半自動スコア入力。</p>
+      </div>
+      <div class="phase" style="--pc: var(--phase2)">
+        <span class="tag">Phase 2</span>
+        <h3>分析＆アドバイス</h3>
+        <p>Claudeによる総合フィードバック、週次ダイジェスト、複数試合の傾向分析。<b>最大の差別化。</b></p>
+      </div>
+      <div class="phase" style="--pc: var(--phase3)">
+        <span class="tag">Phase 3</span>
+        <h3>サーブ解析</h3>
+        <p>骨格抽出→フェーズ分割→文献レンジ比較。精度リスク最大のため専用撮影モードと再撮影フォールバックを前提。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Pipeline</h2>
+    <p class="h2-sub">CV解析パイプライン — ステージ独立・信頼度付き</p>
+    <div class="pipe">
+      <div class="stage p0"><span class="ph">P0</span><b>1. コート検出</b><small>白線＋ホモグラフィ</small></div>
+      <div class="stage p0"><span class="ph">P0</span><b>2. 選手検出・追跡</b><small>YOLO系＋ByteTrack</small></div>
+      <div class="stage p0"><span class="ph">P0</span><b>3. ボール追跡</b><small>TrackNet系</small></div>
+      <div class="stage p0"><span class="ph">P0</span><b>4. ポイント区間分割</b><small>プレー/デッドタイム</small></div>
+      <div class="stage p1"><span class="ph">P1</span><b>5. ショット検出</b><small>軌道反転＋打者判定</small></div>
+      <div class="stage p1"><span class="ph">P1</span><b>6. ショット分類</b><small>骨格＋打点位置</small></div>
+      <div class="stage p1"><span class="ph">P1</span><b>7. 終端判定</b><small>net / out / winner / unknown</small></div>
+    </div>
+    <p class="pipe-note">全ステージが <b>confidence</b> を出力。低信頼は「unknown」としてユーザー修正に委ね、
+    修正結果を学習データとして蓄積する。中間出力はすべて保存し、taxonomy変更時は下流のみ再計算。</p>
+    <div class="flow">
+      <div class="flow-row">
+        <div class="flow-box">イベントJSON<small>コート座標系に正規化</small></div>
+        <span class="arrow">→</span>
+        <div class="flow-box">ルールエンジン<small>taxonomy.yaml</small></div>
+        <span class="arrow">→</span>
+        <div class="flow-box">構造化スタッツ<small>数千トークンに圧縮</small></div>
+        <span class="arrow">→</span>
+        <div class="flow-box">Claude API<small>総合フィードバック生成</small></div>
+        <span class="arrow">→</span>
+        <div class="flow-box">アドバイス配信<small>advice-rules.yaml / LINE</small></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Principles</h2>
+    <p class="h2-sub">設計原則</p>
+    <div class="grid2">
+      <div class="card"><h3><span class="no">01</span>誤った断定より「わからない」</h3>
+        <p>SwingVisionの自動スコア精度問題への回答。低信頼な判定はunknownに落とし、ワンタップ修正で精度表示が上がるインセンティブ設計。</p></div>
+      <div class="card"><h3><span class="no">02</span>粒度はハードコードしない</h3>
+        <p>分類軸・判定式・しきい値・アドバイス発火条件はYAML宣言。カテゴリ追加＝設定編集で、コード変更ゼロ。</p></div>
+      <div class="card"><h3><span class="no">03</span>自前実装は接着部分だけ</h3>
+        <p>姿勢推定・検出・動画処理・文章生成は既存ライブラリ/APIへ。自前で作るのはテニスドメインのルールエンジンとパイプライン統合のみ。</p></div>
+      <div class="card"><h3><span class="no">04</span>動画をLLMに渡さない</h3>
+        <p>Claude APIへの入力は集計済みスタッツJSONのみ。コスト・再現性・プロンプトキャッシュ効率のため。ドメイン知識はsystemに固定しキャッシュ。</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Positioning</h2>
+    <p class="h2-sub">競合との差別化</p>
+    <div class="tbl-scroll diff">
+      <table>
+        <thead><tr><th>領域</th><th>主な競合</th><th>本アプリの立ち位置</th></tr></thead>
+        <tbody>
+          <tr><td>スタッツ・ハイライト編集</td><td>SwingVision（iOS専用）</td>
+            <td>日本語ネイティブ / オムニコート前提 / クロスプラットフォーム（PWA）</td></tr>
+          <tr><td>フォーム骨格解析</td><td>ForceSense、AIスポーツトレーナー</td>
+            <td>試合分析とフォーム解析を1アプリで接続</td></tr>
+          <tr><td>サーブ×プロ比較</td><td>個人開発・学術レベル</td>
+            <td>権利クリーンな文献レンジ比較＋専用撮影モード</td></tr>
+          <tr><td>ミス原因分析＋継続アドバイス</td><td>直接競合なし</td>
+            <td class="strong">最大の差別化 — Phase 2 の中核投資</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer id="docs">
+    詳細設計：<code>docs/design/00-overview.md</code>（意思決定サマリ）から
+    <code>01-mvp-scope</code> / <code>02-architecture</code> / <code>03-recording-guidelines</code> /
+    <code>04-miss-taxonomy</code> / <code>05-tech-stack</code> / <code>06-pro-reference-data</code> /
+    <code>07-advice-delivery</code>。設定ファイルは <code>config/taxonomy.v1.yaml</code> と
+    <code>config/advice-rules.v1.yaml</code>。
+  </footer>
+</div>
