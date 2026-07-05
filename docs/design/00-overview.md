@@ -13,6 +13,8 @@
 | 4 | 外部ツール連携 | CV: YOLO系検出 + TrackNet系ボール追跡 + MediaPipe Pose / 動画: FFmpeg / LLM: Claude API（`claude-opus-4-8`） / ストレージ: S3互換 / 配信: HLS / 通知: LINE Messaging API | [05-tech-stack.md](05-tech-stack.md) |
 | 5 | プロ参照データ | 放送映像からの抽出は権利リスクが高いため**採用しない**。①バイオメカ文献の角度レンジをパラメータ化、②契約コーチの撮り下ろし、の2本立て | [06-pro-reference-data.md](06-pro-reference-data.md) |
 | 6 | 継続アドバイス | 解析直後の即時フィードバック ＋ 週次ダイジェスト。チャネルはアプリ内＋LINE。発火条件もYAMLルールで外出し | [07-advice-delivery.md](07-advice-delivery.md) |
+| 7 | 導入・保守・運用 | VPS 1台＋サーバーレスGPU（常駐なし）の最小構成。コード/CVモデル/YAMLの3系統を独立バージョニング。ゴールデンセット回帰を品質ゲートに。1試合単位の原価計測を初日から | [08-operations.md](08-operations.md) |
+| 8 | マーケ・差別化 | 社会人サークル層に集中。共有リンク＝バイラルループ＝LP。フリーミアム（Free月2試合/Pro月980円想定）。moatは日本環境の正解データとアドバイス効果データの蓄積 | [09-go-to-market.md](09-go-to-market.md) |
 
 ## 設計原則
 

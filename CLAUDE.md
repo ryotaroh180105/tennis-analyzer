@@ -9,10 +9,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ビルド・テストコマンドはまだ存在しない。実装着手時は `docs/design/01-mvp-scope.md` の
 フェーズ計画（Phase 0 = 編集自動化MVP）に従うこと。
 
+## セッション運用ルール
+
+- **モデルの分業**：設計（アーキテクチャ・ドキュメント・意思決定）は `claude-fable-5`、
+  実装（コード作成）は Sonnet で行う。現在のモデルが役割と合わない場合はユーザーに
+  モデル切替（`/model`）を促すこと。
+- **claude-skills リポジトリの運用ルールを適用する**（`ryotaroh180105/claude-skills` の
+  CLAUDE.md 参照。セッションに追加されていなければ `add_repo` で取り込む）：
+  - token-saver：前置き・反復説明なし、箇条書き優先
+  - yagni-guard：依頼にない抽象化・依存を追加しない（設計にも適用）
+  - Web/X の調査は hermes-relay 経由（Claude 自身の WebSearch は使わない）
+
 ## ドキュメントの読み順
 
-`docs/design/00-overview.md` が意思決定サマリ。個別論点は 01〜07 に分かれており、
-番号はブリーフの論点番号にほぼ対応する。設計変更時は 00 のサマリ表も更新すること。
+`docs/design/00-overview.md` が意思決定サマリ。個別論点は 01〜09 に分かれており、
+01〜07 はブリーフの論点番号にほぼ対応、08 が導入・保守・運用、09 がマーケ・差別化。
+設計変更時は 00 のサマリ表も更新すること。
 
 ## 設計上の不変原則（変更にはユーザー合意が必要）
 
