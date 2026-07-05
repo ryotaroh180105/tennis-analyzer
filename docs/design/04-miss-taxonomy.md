@@ -39,7 +39,7 @@ ClassifiedPoint (軸ごとの値 + ラベル + 重要度)
 |---|---|---|
 | `shot_type` | serve / forehand / backhand / volley_smash | CVステージ6 |
 | `outcome` | net / out / winner / in_play / unknown | CVステージ7＋ユーザー修正 |
-| `pressure` | forced / unforced | 直前の相手ショットの速度・コース（判定式） |
+| `pressure` | forced / unforced | 直前の相手ショットの深さ・テンポ（判定式。**球速はスマホ単眼30fpsで信頼できないためv1では使わない**） |
 
 3軸で `4 × 5 × 2 = 40` セルだが、スタッツ表示は任意の軸で畳み込める
 （例：「バックハンドの非強制ミス」= `shot_type=backhand AND outcome IN (net,out) AND pressure=unforced`）。
@@ -67,32 +67,42 @@ dimensions:
     values: [forced, unforced]
     rules:
       - value: forced
-        when: "prev_opponent_shot.speed_kmh > thresholds.forcing_speed
-               or prev_opponent_shot.landing_depth > thresholds.forcing_depth"
+        when: "prev_opponent_shot.landing_depth > thresholds.forcing_depth
+               or prev_opponent_shot.interval_s < thresholds.forcing_tempo_s"
       - value: unforced
         when: "default"
 
 thresholds:                        # ← 「判断基準のパラメータ化」
-  forcing_speed: 95                # km/h これ以上の球を受けたミスは forced
   forcing_depth: 0.8               # コート奥行きの正規化値
+  forcing_tempo_s: 1.1             # 直前ショットからの間隔（秒）
   weak_ball_depth: 0.45            # これより浅い返球は「甘い球」
   rally_long: 9                    # ハイライト対象の長ラリー
 
 labels:
   - match: {shot_type: backhand, outcome: [net, out], pressure: unforced}
-    label_ja: "バックハンドの凡ミス"
+    label: { ja: "バックハンドの凡ミス" }   # ロケールキー型（i18n）
     importance: high               # ハイライト・アドバイスの優先度
   - match: {outcome: winner}
-    label_ja: "ウィナー"
+    label: { ja: "ウィナー" }
     importance: high
 ```
+
+**判定式が参照できるのはイベントストリームに実在するフィールドと派生フィールド
+（`landing_depth`, `interval_s`。[02](02-architecture.md) で定義）のみ**。
+存在しないフィールドを参照する式はスキーマ検証で拒否する。
 
 ### 判定式の実装
 
 - `when` 式は安全なサンドボックス評価器で実行する（Python実装なら `simpleeval` 等。
   `eval` は使わない）。参照できる変数はイベントストリーム由来の読み取り専用コンテキストのみ。
+  文字列リテラルは必ずクォートする（`shot.type != 'serve'`）。
 - ルールは上から順に評価し、最初にマッチした値を採用。`default` は必須。
-- 設定ロード時にスキーマ検証（pydantic）を行い、未知フィールド・循環参照を拒否する。
+  **labels にも catch-all（`match: {}`）を必須とする**（無マッチ状態を作らない）。
+- `winner_min_confidence`：outcome=winner 候補のみに適用する追加しきい値。
+  `terminal.confidence` がこれ未満なら winner でなく unknown に落とす
+  （誤ウィナー断定は信頼を最も損なうため、一般の `min_confidence` より厳格にする）。
+- 設定ロード時にスキーマ検証（pydantic）を行い、未知フィールド・循環参照・
+  **存在しないフィールドへの参照・未クォート文字列**を拒否する。
 
 ## 粒度の「ユーザー適応」
 

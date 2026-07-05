@@ -9,13 +9,16 @@
 2. その結果「振り返る → 改善する → 練習する」のサイクルが遅くなる
 3. 動画共有にも時間がかかる
 
-## 差別化ポイント（競合調査より）
+## カテゴリと差別化（詳細は [09](docs/design/09-go-to-market.md)）
+
+**カテゴリ：記録×継続×社会性で上達サイクルを回す「テニスの継続AIコーチング」**
+（分析アプリの日本語版ではない）
 
 | 領域 | 競合 | 本アプリの差別化 |
 |---|---|---|
-| 試合スタッツ・ハイライト | SwingVision | 日本語ネイティブ、粒度調整可能なミス分類、オムニコート対応前提 |
-| フォーム骨格解析 | ForceSense 等 | 試合分析とフォーム解析の統合 |
-| ミス原因分析＋継続アドバイス | 直接競合なし | **最大の付加価値ポイント** |
+| 試合スタッツ・ハイライト | SwingVision / AceSense | 半自動＋信頼度明示＋unknown許容（誤った断定より未分類）、オムニコート対応前提、ダブルス対応 |
+| フォーム骨格解析 | AIスポーツトレーナー / SportsReflector 等 | 試合分析との統合（Phase 3） |
+| ミス原因分析＋継続アドバイス配信 | 機能単体の参入障壁は低い | **先行蓄積で守る**：修正ラベル収集の仕組みとAdviceLog（アドバイス→成果の対応データ）が時間で複利のつくmoat |
 
 ## ドキュメント構成
 
@@ -29,6 +32,9 @@
 | [docs/design/05-tech-stack.md](docs/design/05-tech-stack.md) | 技術選定（CV / 動画処理 / LLM / インフラ） |
 | [docs/design/06-pro-reference-data.md](docs/design/06-pro-reference-data.md) | プロ比較用参照データの調達戦略 |
 | [docs/design/07-advice-delivery.md](docs/design/07-advice-delivery.md) | 継続アドバイス配信の仕組み |
+| [docs/design/08-operations.md](docs/design/08-operations.md) | 導入・保守・運用（コストモデル・品質ゲート） |
+| [docs/design/09-go-to-market.md](docs/design/09-go-to-market.md) | マーケティング・差別化・拡張戦略 |
+| [docs/design/10-phase0-implementation-plan.md](docs/design/10-phase0-implementation-plan.md) | Phase 0 実装仕様（実装はここから） |
 | [config/taxonomy.v1.yaml](config/taxonomy.v1.yaml) | ミス分類定義（v1初期粒度） |
 | [config/advice-rules.v1.yaml](config/advice-rules.v1.yaml) | アドバイス発火ルール定義 |
 

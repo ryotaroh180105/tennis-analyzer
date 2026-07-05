@@ -10,6 +10,14 @@ settings:
     default_schedule: "SUN 20:00 Asia/Tokyo"
     always_include_positive: true         # 改善点を必ず1つ含める
 
+# when 式の DSL（taxonomyと同じサンドボックス評価器。eval禁止）：
+#   stat(shot_type, metric)         集計スタッツ系列の参照（文字列引数はクォート必須）
+#   trend(series, matches=N)        直近N試合の傾き
+#   avg(metric, matches=N)          直近N試合の平均
+#   last_match.<metric>             直前試合の集計値（属性参照）
+#   last_match.<fn>(args)           直前試合のパラメータ付き集計（例: loss_rate_by_rally）
+#   improved_since_last_advice()    前回アドバイス指標の改善判定
+# 参照できるのは集計済みスタッツのみ。イベントストリーム・動画は参照不可。
 triggers:
   - id: backhand_unforced_trend
     description: バックハンド凡ミス率が直近3試合で上昇傾向
@@ -27,8 +35,17 @@ triggers:
 
   - id: double_fault_spike
     description: 直近試合でダブルフォルトが急増
-    when: "last_match.double_faults >= 5 and avg(double_faults, matches=5) < 3"
+    enabled: false   # double_faults は 1st/2nd サーブ識別（serve_number 軸、taxonomy v2予定）が
+                     # 必要で、v1 のCV出力・スコア入力からは算出できない。軸追加時に有効化。
+    when: "last_match.double_faults >= 5 and avg('double_faults', matches=5) < 3"
     priority: 90
+    cooldown_days: 7
+    advice_template: second_serve_practice
+
+  - id: serve_fault_spike
+    description: サーブミス率（1st/2nd合算、taxonomy stat_key serve_fault）が直近試合で急増
+    when: "last_match.serve_fault_rate > 0.45 and avg('serve_fault_rate', matches=5) < 0.35"
+    priority: 85
     cooldown_days: 7
     advice_template: second_serve_practice
 
@@ -48,24 +65,26 @@ triggers:
 
 # テンプレートはClaude APIへの生成指示のスケルトン。
 # {{...}} はアドバイスエンジンが集計値を埋めてからLLMに渡す。
+# ロケールキー型（taxonomyと同じ）。他言語はキー追加のみで拡張する。
 advice_templates:
-  backhand_consistency:
-    theme: バックハンドの安定
-    facts: "直近3試合のバックハンド凡ミス率: {{trend_values}}"
-    drill_hints: [クロスラリー20本継続, 高い軌道で深さ優先]
-  forehand_consistency:
-    theme: フォアハンドの安定
-    facts: "直近3試合のフォアハンド凡ミス率: {{trend_values}}"
-    drill_hints: [ショートラリーからの段階ビルドアップ]
-  second_serve_practice:
-    theme: セカンドサーブ
-    facts: "前試合ダブルフォルト {{count}} 本（平常時平均 {{baseline}} 本）"
-    drill_hints: [スピンサーブの回転量優先練習, ターゲット練習は枠を広めに]
-  early_rally_focus:
-    theme: ラリー立ち上がり
-    facts: "1-4本ラリーでの失点率 {{rate}}"
-    drill_hints: [リターンからの3球目まで限定の形式練習]
-  praise_improvement:
-    theme: 改善の確認
-    facts: "{{metric_label}} が {{before}} → {{after}} に改善"
-    drill_hints: []
+ ja:
+   backhand_consistency:
+     theme: バックハンドの安定
+     facts: "直近3試合のバックハンド凡ミス率: {{trend_values}}"
+     drill_hints: [クロスラリー20本継続, 高い軌道で深さ優先]
+   forehand_consistency:
+     theme: フォアハンドの安定
+     facts: "直近3試合のフォアハンド凡ミス率: {{trend_values}}"
+     drill_hints: [ショートラリーからの段階ビルドアップ]
+   second_serve_practice:
+     theme: セカンドサーブ
+     facts: "前試合ダブルフォルト {{count}} 本（平常時平均 {{baseline}} 本）"
+     drill_hints: [スピンサーブの回転量優先練習, ターゲット練習は枠を広めに]
+   early_rally_focus:
+     theme: ラリー立ち上がり
+     facts: "1-4本ラリーでの失点率 {{rate}}"
+     drill_hints: [リターンからの3球目まで限定の形式練習]
+   praise_improvement:
+     theme: 改善の確認
+     facts: "{{metric_label}} が {{before}} → {{after}} に改善"
+     drill_hints: []

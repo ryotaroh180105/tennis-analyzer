@@ -4,7 +4,9 @@
 
 ミスの原因分析に基づくアドバイスを継続的に届け、
 「プレーを振り返る → 改善する → また練習する」のサイクルを**定着**させる。
-直接競合が存在しない、本アプリ最大の差別化ポイント。
+本アプリ最大の差別化ポイント。ただし**機能自体の参入障壁は低い**（競合がLLMアドバイス層を
+足すのは数ヶ月仕事）。防御は機能でなく蓄積：アドバイス→行動変容→成果の対応データ
+（AdviceLog）は時間でしか買えず、競技・言語を越えて移転可能な唯一の資産（[09](09-go-to-market.md)）。
 
 ## 配信の3層設計
 
@@ -21,13 +23,19 @@
   （ポジティブフィードバックが継続率を支える）。
 - 練習動画がしばらくアップロードされない場合のリマインドは②に統合（単独のリマインド通知はしない）。
 
-## チャネル：LINE Messaging APIを主軸
+## チャネル：LINE Messaging APIを主軸（ただし実装は抽象化）
 
 - ターゲット（日本のサークル層・競技者）のリーチはLINEが最良。プッシュ通知の
   許諾ハードルもネイティブアプリより低い。
 - LINE公式アカウントを友だち追加 → アカウント連携（LINEログイン）で本人紐付け。
 - メッセージはFlex Messageでスタッツカード（ミニグラフ画像＋ハイライトへのリンク）を送る。
-- メール・アプリ内通知はフォールバック。
+- **実装はチャネル抽象（アダプタ）にし、LINEをスキーマレベルで固定しない**：
+  認証は `auth_providers` 分離、通知は channel アダプタ（[10](10-phase0-implementation-plan.md)）。
+  LINEが強いのは日本・台湾・タイのみで、海外展開時は WhatsApp / Push / Email に差し替える。
+  Phase 0 時点なら抽象化コストはほぼゼロ、後からだと移行プロジェクトになる。
+- 登録時にメールアドレスも必ず取得し、フォールバックを実質化する。
+  **公式アカウントのブロック率をKPIに含める**（平均2〜3割。ブロック＝配信という
+  差別化の核がそのユーザーに対して消滅するため、先行指標として監視・アラート対象）。
 
 ## アドバイスエンジン（ルール外出し）
 
@@ -38,16 +46,19 @@ taxonomyと同じ思想で、**発火条件・優先度・テンプレートをY
 version: 1
 triggers:
   - id: backhand_unforced_trend
-    when: "trend(backhand_unforced_rate, matches=3) > 0.05"
+    when: "trend(stat('backhand', 'unforced_error_rate'), matches=3) > 0.05"
     priority: 80
     cooldown_days: 14            # 同一トリガーの再発火抑制
     advice_template: backhand_consistency
-  - id: double_fault_spike
-    when: "last_match.double_faults >= 5 and avg(double_faults, matches=5) < 3"
-    priority: 90
+  - id: serve_fault_spike
+    when: "last_match.serve_fault_rate > 0.45 and avg('serve_fault_rate', matches=5) < 0.35"
+    priority: 85
     cooldown_days: 7
     advice_template: second_serve_practice
 ```
+
+（when式のDSL定義は実ファイル冒頭のコメントが正。このドキュメントに式を書くときは
+実ファイルと同一表記にする。double_fault系はserve_number軸のv2昇格まで無効）
 
 - `when` 式はtaxonomyと同じサンドボックス評価器を共用。参照できるのは集計済みスタッツのみ。
 - **文面の最終生成はClaude API**：テンプレートIDと該当スタッツを渡し、ユーザーの直近文脈

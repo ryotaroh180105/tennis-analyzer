@@ -10,10 +10,11 @@
 | 選手検出 | YOLO系（例: RT-DETR / YOLOX ※Apache-2.0系を優先） | Ultralytics YOLO（AGPL/商用ライセンス要検討） | ライセンス注意。人物クラスのみで十分 |
 | 選手追跡 | ByteTrack | BoT-SORT | 2名固定なのでシンプルで足りる |
 | ボール検出・追跡 | TrackNet系（時系列ヒートマップCNN、テニス実績多数） | 自前の小型時系列モデル | 小さく速い物体は単フレーム検出では不可。3フレーム入力型が定石 |
-| コート検出 | 白線検出＋RANSACホモグラフィ（自前の薄い実装） | 学習ベースのコートキーポイント検出 | オムニコートのデータ収集が鍵（[03](03-recording-guidelines.md)） |
+| コート検出 | 白線検出＋RANSACホモグラフィ（自前の薄い実装） | 学習ベースのコートキーポイント検出 | オムニコートのデータ収集が鍵（[03](03-recording-guidelines.md)）。**コート寸法・ライン定義はコードにハードコードせず `court-spec.yaml` として持つ**（将来のパデル・ピックルボール展開時にCV側の改修範囲を限定する規約） |
 | 姿勢推定 | MediaPipe Pose（Tasks API） | MMPose（精度重視の再解析用） | まずMediaPipe。33ランドマーク＋visibility。バイオメカ指標は自前算出 |
 
-- GPUワーカーはコンテナ化し、需要に応じてスケール（初期はスポットGPU 1台で十分）。
+- GPUワーカーはコンテナ化し、需要に応じてスケール（初期はサーバーレスGPUのジョブ単位課金。
+  常駐なし。[08](08-operations.md)）。
 - モデルの中間出力（検出ボックス、軌道、骨格）はすべて保存し、モデル更新時の回帰評価に使う。
 
 ## 動画処理・配信
@@ -32,7 +33,7 @@
 | API | Python / FastAPI | CVエコシステムと同一言語で運用が単純 |
 | 非同期ジョブ | Celery + Redis | 解析・エンコードのジョブキュー |
 | DB | PostgreSQL | イベントストリームはJSONB、集計はSQL |
-| フロント | Next.js（PWA） | iOS専用のSwingVisionに対する**クロスプラットフォーム**差別化。ネイティブはPMF後 |
+| フロント | Next.js（PWA） | クロスプラットフォームを最小工数で確保（AceSense等も対応済みのため差別化の主軸ではなく補助。[09](09-go-to-market.md)）。**ネイティブ移行はオンデバイスCV（端末側前処理・粗カット）が必要になった時点で判断**（[08](08-operations.md) の移行トリガー参照） |
 | 通知・共有 | LINE Messaging API（日本のターゲット層に最適）、YouTube Data API（限定公開アップロード、YouTuber向け） | [07](07-advice-delivery.md) |
 
 ## LLM：フィードバック・アドバイス生成（Claude API）
@@ -58,6 +59,11 @@ CVパイプラインが生成した構造化スタッツだけを入力する（
 - **プロンプトキャッシュ**：テニスドメイン知識（セオリー、判定基準の説明、出力方針）を
   system promptに固定し `cache_control: {"type": "ephemeral"}` でキャッシュ。
   ユーザーごとのスタッツはmessages側に置く。
+  **効果の見積もりは保守的に**：ephemeralのTTLは5分のため、散発的な単発解析ジョブでは
+  ヒットしない。キャッシュ割引は週次ダイジェスト等の連続バッチ処理でのみ原価に織り込み、
+  単発ジョブはキャッシュなし単価で計上する（[08](08-operations.md)）。
+  また最小キャッシュ対象プレフィックスは4096トークンのため、ドメインプロンプトが
+  それ未満だと無言でキャッシュされない点に注意。
 - **思考制御**：`thinking={"type": "adaptive"}` + `output_config={"effort": "high"}`。
 
 ```python
@@ -75,8 +81,9 @@ response = client.messages.parse(
     system=[{"type": "text", "text": TENNIS_DOMAIN_PROMPT,
              "cache_control": {"type": "ephemeral"}}],
     messages=[{"role": "user", "content": stats_json}],
-    output_format=MatchFeedback,
+    output_config={"format": MatchFeedback},   # output_format= は非推奨。正準は output_config
 )
+feedback = response.parsed_output   # 検証済み MatchFeedback インスタンス
 ```
 
 ### Claude APIへの入力スタッツJSON（例）
@@ -88,8 +95,9 @@ response = client.messages.parse(
   "stats": {
     "by_shot_outcome": {"backhand": {"net": 11, "out": 6, "winner": 2}, "...": {}},
     "pressure_split": {"unforced_errors": 21, "forced_errors": 12},
-    "serve": {"first_in_pct": 0.58, "double_faults": 5},
-    "rally_length_histogram": {"1-2": 34, "3-5": 51, "6-8": 22, "9+": 11},
+    "serve": {"fault_rate": 0.38},   // 1st/2nd識別（first_in_pct, double_faults）はserve_number軸のv2昇格後
+    "rally_length_histogram": {"1-4": 61, "5-8": 35, "9+": 22},  // バケットはadvice-rulesの参照と同一定義
+
     "trend_vs_last_5_matches": {"backhand_unforced_rate": "+0.08"}
   },
   "confidence": {"overall": 0.81, "notes": ["9ポイントが未分類"]}

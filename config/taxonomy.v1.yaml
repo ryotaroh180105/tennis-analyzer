@@ -3,7 +3,7 @@
 # 分類軸・判定基準はこのファイルの編集のみで追加・変更できる（コード変更不要）。
 
 version: 1
-locale: ja
+default_locale: ja
 
 # ---------------------------------------------------------------
 # 分類軸（dimensions）
@@ -14,34 +14,39 @@ dimensions:
   - id: shot_type
     source: cv.shot.type
     values: [serve, forehand, backhand, volley_smash]
-    labels_ja:
-      serve: サーブ
-      forehand: フォアハンド
-      backhand: バックハンド
-      volley_smash: ボレー・スマッシュ
+    labels:                    # ロケールキー型（i18n対応。ja以外は追加のみで拡張）
+      ja:
+        serve: サーブ
+        forehand: フォアハンド
+        backhand: バックハンド
+        volley_smash: ボレー・スマッシュ
 
   - id: outcome
     source: cv.terminal.type
     values: [net, out, winner, in_play, unknown]
     min_confidence: 0.6        # これ未満は unknown に落とす
-    labels_ja:
-      net: ネット
-      out: アウト
-      winner: ウィナー
-      in_play: ラリー継続
-      unknown: 未分類
+    labels:
+      ja:
+        net: ネット
+        out: アウト
+        winner: ウィナー
+        in_play: ラリー継続
+        unknown: 未分類
 
   - id: pressure
     source: rule
     values: [forced, unforced]
-    labels_ja:
-      forced: 強制ミス（相手に崩された）
-      unforced: 非強制ミス（凡ミス）
+    labels:
+      ja:
+        forced: 強制ミス（相手に崩された）
+        unforced: 非強制ミス（凡ミス）
     rules:
+      # 参照できるのはイベントストリームの実在フィールドのみ（02の派生フィールド参照）。
+      # 球速はスマホ単眼30fpsでは信頼できないため v1 では使わない。
       - value: forced
         when: >
-          prev_opponent_shot.speed_kmh > thresholds.forcing_speed
-          or prev_opponent_shot.landing_depth > thresholds.forcing_depth
+          prev_opponent_shot.landing_depth > thresholds.forcing_depth
+          or prev_opponent_shot.interval_s < thresholds.forcing_tempo_s
       - value: unforced
         when: default
 
@@ -49,11 +54,13 @@ dimensions:
 # 判断基準のパラメータ（「何がミスか・甘い球か・良いショットか」）
 # ---------------------------------------------------------------
 thresholds:
-  forcing_speed: 95        # km/h。これ以上の球を受けた後のミスは forced
   forcing_depth: 0.80      # ベースラインからの正規化深度。深い球を受けた後のミスは forced
+  forcing_tempo_s: 1.1     # 直前ショットからの間隔（秒）。速いテンポで打たされた後のミスは forced
   weak_ball_depth: 0.45    # これより浅い返球は「甘い球」タグ
   rally_long: 9            # このショット数以上のラリーはハイライト候補
-  winner_min_confidence: 0.75  # ウィナー断定に要求する信頼度
+  winner_min_confidence: 0.75  # outcome=winner 候補のみに適用する追加しきい値。
+                               # terminal.confidence がこれ未満なら winner でなく unknown に
+                               # 落とす（誤ウィナー断定は信頼を最も損なうため 0.6 より厳格）
 
 # ---------------------------------------------------------------
 # ラベルと重要度（ハイライト選定・アドバイス優先度に使用）
@@ -61,43 +68,48 @@ thresholds:
 # ---------------------------------------------------------------
 labels:
   - match: { outcome: winner }
-    label_ja: ウィナー
+    label: { ja: ウィナー }
     importance: high
     highlight: true
 
   - match: { shot_type: serve, outcome: [net, out] }
-    label_ja: サーブミス
+    label: { ja: サーブミス }
     importance: medium
     stat_key: serve_fault
 
   - match: { shot_type: backhand, outcome: [net, out], pressure: unforced }
-    label_ja: バックハンドの凡ミス
+    label: { ja: バックハンドの凡ミス }
     importance: high
     highlight: true
 
   - match: { shot_type: forehand, outcome: [net, out], pressure: unforced }
-    label_ja: フォアハンドの凡ミス
+    label: { ja: フォアハンドの凡ミス }
     importance: high
     highlight: true
 
   - match: { outcome: [net, out], pressure: forced }
-    label_ja: 強制ミス
+    label: { ja: 強制ミス }
     importance: low
 
   - match: { outcome: unknown }
-    label_ja: 未分類ポイント
+    label: { ja: 未分類ポイント }
     importance: none
     exclude_from_stats: true   # 分母から除外し「未分類 n 件」として別表示
+
+  # catch-all（rules の default と同様、labels にも必須。無マッチ状態を作らない）
+  - match: {}
+    label: { ja: その他 }
+    importance: none
 
 # ---------------------------------------------------------------
 # タグ（軸とは独立に付与される追加属性）
 # ---------------------------------------------------------------
 tags:
   - id: weak_ball
-    label_ja: 甘い球
-    when: "shot.landing_depth < thresholds.weak_ball_depth and shot.type != serve"
+    label: { ja: 甘い球 }
+    when: "shot.landing_depth < thresholds.weak_ball_depth and shot.type != 'serve'"
   - id: long_rally
-    label_ja: ロングラリー
+    label: { ja: ロングラリー }
     scope: point
     when: "point.shot_count >= thresholds.rally_long"
     highlight: true

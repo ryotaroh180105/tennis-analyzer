@@ -22,8 +22,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ドキュメントの読み順
 
-`docs/design/00-overview.md` が意思決定サマリ。個別論点は 01〜09 に分かれており、
-01〜07 はブリーフの論点番号にほぼ対応、08 が導入・保守・運用、09 がマーケ・差別化。
+`docs/design/00-overview.md` が意思決定サマリ。個別論点は 01〜10 に分かれており、
+01〜07 はブリーフの論点番号にほぼ対応、08 が導入・保守・運用、09 がマーケ・差別化・拡張戦略、
+**10 が Phase 0 実装仕様（実装セッションはまずこれを読む）**。
 設計変更時は 00 のサマリ表も更新すること。
 
 ## 設計上の不変原則（変更にはユーザー合意が必要）
@@ -41,10 +42,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `taxonomy.v1.yaml` — ミス分類の軸（dimensions）・判定式（rules）・しきい値（thresholds）・
   ラベル（labels）。`when` 式はサンドボックス評価器で実行する前提（`eval` 禁止）。
-  labelsは上から順に最初のマッチを採用、ルールには `default` が必須。
+  判定式が参照できるのはイベントストリームに実在するフィールドのみ（存在しない参照は
+  スキーマ検証で拒否）。labelsは上から順に最初のマッチを採用し catch-all（`match: {}`）必須、
+  ルールには `default` が必須。ラベルはロケールキー型（`label: {ja: ...}`）。
 - `advice-rules.v1.yaml` — アドバイス発火条件とテンプレート。「何を言うか」はルール、
-  「どう言うか」はClaude APIという分業。
-- 両ファイルともバージョン付きリソースとして扱い、破壊的変更は新バージョンファイルを追加する。
+  「どう言うか」はClaude APIという分業。DSL定義はファイル冒頭コメントが正。
+- `segmentation.v1.yaml`（Phase 0で新設） — 区間判定しきい値。しきい値のコード内定数は禁止。
+- 全ファイルともバージョン付きリソースとして扱い、破壊的変更は新バージョンファイルを追加する。
+- コート寸法・ライン定義は `court-spec.yaml` に外出しする（コードへのハードコード禁止。
+  他ラケットスポーツ展開時の改修範囲を限定するため）。
 
 ## 技術選定の要点（docs/design/05-tech-stack.md）
 
