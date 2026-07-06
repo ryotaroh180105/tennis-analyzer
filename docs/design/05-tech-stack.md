@@ -8,8 +8,8 @@
 | 用途 | 第一候補 | 代替 | 備考 |
 |---|---|---|---|
 | 選手検出 | YOLO系（例: RT-DETR / YOLOX ※Apache-2.0系を優先） | Ultralytics YOLO（AGPL/商用ライセンス要検討） | ライセンス注意。人物クラスのみで十分 |
-| 選手追跡 | ByteTrack | BoT-SORT | 2名固定なのでシンプルで足りる |
-| ボール検出・追跡 | TrackNet系（時系列ヒートマップCNN、テニス実績多数） | 自前の小型時系列モデル | 小さく速い物体は単フレーム検出では不可。3フレーム入力型が定石 |
+| 選手追跡 | ByteTrack | BoT-SORT | 可変人数（シングルス2〜ダブルス4）でも十分軽量。ダブルスのオクルージョンでID switchは起きる前提とし、個人紐付けが要る用途（クレーム等）は再確認フローを挟む |
+| ボール検出・追跡 | TrackNet系（時系列ヒートマップCNN、テニス実績多数） | 自前の小型時系列モデル | 小さく速い物体は単フレーム検出では不可。**隣接**3フレーム入力が前提（疎サンプリング時はバースト取得。config/segmentation.v1.yaml）。**ライセンス注意**：研究実装はGPL系・無ライセンス・放送映像由来の重みが多い。商用可能な実装の特定または自撮りデータでの再学習をPhase 0の調査タスクとする（[06](06-pro-reference-data.md)の権利方針と整合させる） |
 | コート検出 | 白線検出＋RANSACホモグラフィ（自前の薄い実装） | 学習ベースのコートキーポイント検出 | オムニコートのデータ収集が鍵（[03](03-recording-guidelines.md)）。**コート寸法・ライン定義はコードにハードコードせず `court-spec.yaml` として持つ**（将来のパデル・ピックルボール展開時にCV側の改修範囲を限定する規約） |
 | 姿勢推定 | MediaPipe Pose（Tasks API） | MMPose（精度重視の再解析用） | まずMediaPipe。33ランドマーク＋visibility。バイオメカ指標は自前算出 |
 
@@ -46,8 +46,8 @@ CVパイプラインが生成した構造化スタッツだけを入力する（
 
 | 用途 | モデル | 理由 |
 |---|---|---|
-| 試合総合フィードバック、週次ダイジェスト | `claude-opus-4-8`（$5/$25 per MTok） | 戦術的示唆の質が差別化の核。既定モデル |
-| 大量バッチ処理（過去試合の一括再分析など） | 同上 + **Batch API** | 非リアルタイム処理は50%割引 |
+| 試合総合フィードバック、週次ダイジェスト | `claude-opus-4-8`（$5/$25 per MTok） | 戦術的示唆の質が差別化の核。既定モデル。**thinkingトークンも出力課金される**ため原価は上限側（〜60円/試合）で見積もる（[08](08-operations.md)） |
+| 大量バッチ処理（過去試合の一括再分析など） | 同上 + **Batch API** | 非リアルタイム処理は50%割引。**バッチ内は並列・順不同のためephemeralキャッシュ（5分）のヒットは保証されない** — キャッシュ割引は原価に見込まない |
 | 軽量分類（ユーザー修正コメントの正規化など） | `claude-haiku-4-5`（$1/$5 per MTok） | 高頻度・低難度タスクのみ |
 
 ### 呼び出し設計（Python SDK）
@@ -81,7 +81,9 @@ response = client.messages.parse(
     system=[{"type": "text", "text": TENNIS_DOMAIN_PROMPT,
              "cache_control": {"type": "ephemeral"}}],
     messages=[{"role": "user", "content": stats_json}],
-    output_config={"format": MatchFeedback},   # output_format= は非推奨。正準は output_config
+    output_format=MatchFeedback,   # parse() はpydanticクラスをこの便宜引数で受ける
+                                   # （create() のトップレベル output_format パラメータの
+                                   #   非推奨とは別物。混同しない）
 )
 feedback = response.parsed_output   # 検証済み MatchFeedback インスタンス
 ```
@@ -91,14 +93,16 @@ feedback = response.parsed_output   # 検証済み MatchFeedback インスタン
 ```jsonc
 {
   "player": {"level_hint": "intermediate", "hand": "right"},
-  "match": {"sets": "6-4 3-6", "total_points": 118, "unknown_outcome_points": 9},
+  "match": {"sets": "6-4 3-6", "points": 118, "unknown_outcome_points": 9},
   "stats": {
-    "by_shot_outcome": {"backhand": {"net": 11, "out": 6, "winner": 2}, "...": {}},
+    // ★このJSONのキー名が集計スタッツの正準スキーマ。advice-rules の DSL
+    //   （stat('backhand','unforced_error_rate') / last_match.serve_fault_rate /
+    //    last_match.points）はこの名前空間を参照する。二重定義を作らない
+    "by_shot": {"backhand": {"net": 11, "out": 6, "winner": 2, "unforced_error_rate": 0.24}, "...": {}},
     "pressure_split": {"unforced_errors": 21, "forced_errors": 12},
-    "serve": {"fault_rate": 0.38},   // 1st/2nd識別（first_in_pct, double_faults）はserve_number軸のv2昇格後
+    "serve_fault_rate": 0.38,   // 1st/2nd識別（first_in_pct, double_faults）はserve_number軸のv2昇格後
     "rally_length_histogram": {"1-4": 61, "5-8": 35, "9+": 22},  // バケットはadvice-rulesの参照と同一定義
-
-    "trend_vs_last_5_matches": {"backhand_unforced_rate": "+0.08"}
+    "trend_vs_last_5_matches": {"backhand.unforced_error_rate": "+0.08"}
   },
   "confidence": {"overall": 0.81, "notes": ["9ポイントが未分類"]}
 }

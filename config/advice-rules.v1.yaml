@@ -3,6 +3,7 @@
 # 「何を言うか」をここで宣言し、「どう言うか」はClaude APIが生成する。
 
 version: 1
+default_locale: ja
 
 settings:
   max_trigger_notifications_per_week: 1   # トリガー型（③）の週上限
@@ -47,7 +48,7 @@ triggers:
     when: "last_match.serve_fault_rate > 0.45 and avg('serve_fault_rate', matches=5) < 0.35"
     priority: 85
     cooldown_days: 7
-    advice_template: second_serve_practice
+    advice_template: serve_consistency   # second_serve_practice はダブルフォルト数を要求するため不可
 
   - id: short_rally_losses
     description: 短いラリー（1-4本）での失点が多い＝立ち上がりのミス
@@ -61,11 +62,14 @@ triggers:
     when: "improved_since_last_advice()"
     priority: 100          # 改善の承認は最優先
     cooldown_days: 0
+    standalone: false      # 週1トリガー枠を消費せず、他のアドバイス/ダイジェストに併載する
+                           # （praiseが枠を恒久占有して是正系が発火しないstarvationの防止）
     advice_template: praise_improvement
 
 # テンプレートはClaude APIへの生成指示のスケルトン。
 # {{...}} はアドバイスエンジンが集計値を埋めてからLLMに渡す。
-# ロケールキー型（taxonomyと同じ）。他言語はキー追加のみで拡張する。
+# ロケール構造：テンプレート木を言語ごとに保持する（taxonomyの項目内ロケールキーとは
+# 意図的に異なる — テンプレは文章量が多く、言語ごとに木を複製する方が編集しやすい）。
 advice_templates:
  ja:
    backhand_consistency:
@@ -77,9 +81,14 @@ advice_templates:
      facts: "直近3試合のフォアハンド凡ミス率: {{trend_values}}"
      drill_hints: [ショートラリーからの段階ビルドアップ]
    second_serve_practice:
+     # double_fault_spike（enabled: false）専用。serve_number軸のv2昇格まで未使用
      theme: セカンドサーブ
      facts: "前試合ダブルフォルト {{count}} 本（平常時平均 {{baseline}} 本）"
      drill_hints: [スピンサーブの回転量優先練習, ターゲット練習は枠を広めに]
+   serve_consistency:
+     theme: サーブの安定
+     facts: "前試合サーブミス率 {{rate}}（直近5試合平均 {{baseline}}）"
+     drill_hints: [トスの高さ・位置の一定化, 回転量優先のセカンド練習]
    early_rally_focus:
      theme: ラリー立ち上がり
      facts: "1-4本ラリーでの失点率 {{rate}}"

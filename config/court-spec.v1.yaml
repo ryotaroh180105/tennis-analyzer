@@ -1,0 +1,56 @@
+# コート仕様 v1（テニス）
+# 寸法・ライン定義をコードにハードコードしないための外出し（CLAUDE.md 参照）。
+# 将来のパデル・ピックルボール展開時は新しい court-spec ファイルを追加する。
+# ※展開時の実改修は寸法だけでは済まない（ボール外観差による検出器再学習、
+#   競技別taxonomy新規作成等）。このファイルが限定するのは「CVコード内の
+#   コート形状依存箇所」のみ。
+
+version: 1
+sport: tennis
+unit: m
+
+court:
+  length: 23.77
+  width_doubles: 10.97
+  width_singles: 8.23
+  net_height_center: 0.914
+
+# ライン端点（コート座標系: 原点=ネット中央、x=サイド方向、y=ベースライン方向）
+# ホモグラフィ推定のキーポイント対応に使う
+lines:
+  - id: baseline_near
+    from: [-5.485, 11.885]
+    to: [5.485, 11.885]
+  - id: baseline_far
+    from: [-5.485, -11.885]
+    to: [5.485, -11.885]
+  - id: singles_sideline_left
+    from: [-4.115, -11.885]
+    to: [-4.115, 11.885]
+  - id: singles_sideline_right
+    from: [4.115, -11.885]
+    to: [4.115, 11.885]
+  - id: doubles_sideline_left
+    from: [-5.485, -11.885]
+    to: [-5.485, 11.885]
+  - id: doubles_sideline_right
+    from: [5.485, -11.885]
+    to: [5.485, 11.885]
+  - id: service_line_near
+    from: [-4.115, 6.40]
+    to: [4.115, 6.40]
+  - id: service_line_far
+    from: [-4.115, -6.40]
+    to: [4.115, -6.40]
+  - id: center_service_line
+    from: [0.0, -6.40]
+    to: [0.0, 6.40]
+  - id: net
+    from: [-5.485, 0.0]
+    to: [5.485, 0.0]
+
+# 正規化深度（taxonomy の landing_depth 等が参照する座標変換の定義）
+# depth = |y| / (length / 2)  → 0=ネット、1=ベースライン
+depth_normalization:
+  origin: net
+  scale: half_length

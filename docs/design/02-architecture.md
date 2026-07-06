@@ -35,10 +35,16 @@
 - **API層とワーカー層を分離**：動画解析は分単位のバッチ処理。ジョブキュー経由の非同期実行とし、
   進捗はポーリングでクライアントに通知（WebSocketは規模が出てから。[10](10-phase0-implementation-plan.md)）。
 - **取り込み正規化（ingest）**：スマホ実動画は HEVC/HDR（iPhone既定）・可変フレームレート（VFR）・
-  回転メタデータ付きが常態。解析・配信の前に ffprobe で判定し、
+  回転メタデータ付きが常態。precheck（CPU）の ffprobe 判定に基づき、
   (a) 回転を正規化、(b) HEVC/HDR は H.264/SDR に1回トランスコード（hls.js 再生互換のため必須）、
   (c) CV入力はCFR化したプロキシを使う（時刻はPTS基準で保持）。
+  **正規化の出力仕様：GOP 2秒（`-g 60 -forced-idr 1`、HLS 6秒セグメントと整数比）、
+  目標ビットレート8Mbps（1080p）**。GOPを規定しないと `-c copy` の外側スナップが
+  デフォルトGOP（8秒超）に引きずられ、クリップごとに最大±8秒の余分が付いて
+  デッドタイムカットの価値が毀損する。
   以降のカット編集はこの正規化済みH.264に対して `-c copy` で行う。
+  ※NVENC必須のためGPU選定はL4等NVENC搭載機に限定（A100/H100系はNVENC非搭載）。
+  dev/CIではlibx264にフォールバック（環境変数 `ENCODER`）。
 - **成果物はすべてS3互換ストレージ**：原本動画、編集済み動画、ハイライト、イベントJSON、スタッツ。
   コンテナ/ワーカーはステートレスに保つ。
 
@@ -52,14 +58,14 @@
 | 1 | コート検出 | 白線検出＋ホモグラフィ推定 | コート座標系への射影行列、コート種別、信頼度 |
 | 2 | 選手検出・追跡 | YOLO系検出＋ByteTrack | コート内人物のトラック（可変人数：シングルス2・**ダブルス4**。画面座標＋コート座標） |
 | 3 | ボール検出・追跡 | TrackNet系（時系列CNN） | ボール軌道、バウンド位置候補 |
-| 4 | ポイント区間分割 | 選手・ボールの活動量からプレー/デッドタイム判定 | ポイント区間リスト `[{start, end}]` |
+| 4 | ポイント区間分割 | 選手・ボールの活動量からプレー/デッドタイム判定 | ポイント区間リスト `[{start_s, end_s}]` |
 | 5 | ショットイベント検出 | ボール軌道の方向反転＋打者側判定 | ショット列 `[{t, player, court_pos}]` |
 | 6 | ショット分類 | 骨格特徴（MediaPipe Pose）＋打点位置の分類器 | ショット種別（serve/forehand/backhand/volley_smash）。**近側選手のみ骨格を使う**。遠側選手は20m超・50〜100px相当で姿勢推定が機能しないため、打点位置×軌道方向の粗分類＋unknown許容 |
 | 7 | ラリー終端判定 | 最終ショット後の軌道（ネット到達/バウンド位置/追跡ロスト） | 終端タイプ候補（**net/out/winner/in_play/unknown** — この5値が正準。taxonomyのoutcome軸と同一）＋信頼度 |
 
 **Phase 0で必要なのはステージ1〜4のみ。** 5〜7はPhase 1で追加。
 
-### 信頼度の扱い（設計原則2の具体化）
+### 信頼度の扱い（不変原則1の具体化）
 
 - 全ステージの出力に `confidence: 0.0-1.0` を付与。
 - 終端判定の unknown 化はCV側にハードコードせず、**taxonomy の `min_confidence`（v1: 0.6）に従って
@@ -93,14 +99,14 @@ CVパイプラインの出力は正規化されたJSONイベントストリー�
           "contact_court_pos": [5.2, -1.1],
           "landing_court_pos": [3.8, 4.2], "landing_confidence": 0.72,
           // --- 派生フィールド（ルールエンジンが参照。生成はステージ5/7の後処理） ---
-          "landing_depth": 0.78,   // landing_court_pos から算出した正規化深度（0=ネット, 1=ベースライン）
+          "landing_depth": 0.78,   // 正規化深度（0=ネット, 1=ベースライン。court-spec.v1.yaml の定義に従う）
           "interval_s": 1.4        // 直前ショットからの経過秒（ラリーテンポ。先頭ショットは null）
         }
         // ...
       ],
+      // point スコープの派生フィールド: "shot_count"（shots配列長。taxonomyのtagが参照）
       "terminal": {"type": "net", "confidence": 0.83, "last_shot_player": "p1"},
-      "score_after": {"p1": "30", "p2": "15", "source": "user_input"},
-      "user_corrections": []
+      "score_after": {"p1": "30", "p2": "15", "source": "user_input"}
     }
   ]
 }
@@ -109,8 +115,12 @@ CVパイプラインの出力は正規化されたJSONイベントストリー�
 ポイント：
 
 - `source: "user_input"` — スコアは半自動（ユーザー入力）。将来自動化しても同じフィールドを使う。
-- `user_corrections` — ユーザー修正の履歴を保持し、学習データ化と監査に使う。
-- 座標はすべて**コート座標系**（ホモグラフィ変換後、単位m）に正規化。カメラ位置に依存しない。
+- **イベントストリームはイミュータブル**（作成後更新しない。再解析は version+1）。
+  ユーザー修正は segments（Phase 0）/ PointRecord（Phase 1〜）に保持し、
+  学習データ・ゴールデンセットへの還流はそちらから行う（[10](10-phase0-implementation-plan.md)）。
+- 座標はすべて**コート座標系**（ホモグラフィ変換後、単位m。寸法は court-spec.v1.yaml）に正規化。
+- 評価コンテキストの束縛（taxonomyの `when` 式が参照）：`shot.*` = 当該ショット、
+  `prev_opponent_shot.*` = 直前の相手ショット、`point.*` = ポイントスコープ（shot_count等）。
 
 ## 動画編集パイプライン（FFmpeg）
 
@@ -128,16 +138,19 @@ CVパイプラインの出力は正規化されたJSONイベントストリー�
 | 工程 | 目安 | 備考 |
 |---|---|---|
 | アップロード | 30〜55分（LTE上り10〜20Mbps） | ユーザー環境依存。**処理SLAには含めない**（[01](01-mvp-scope.md)） |
-| ingest正規化（HEVC→H.264） | 10〜20分 | GPU（NVENC）で実行 |
-| GPUコールドスタート | 1〜2分 × 2回 | preflight / analyze |
-| CV解析（stage1-4） | 15〜30分 | サンプリングfpsに依存 |
+| precheck（CPU） | 〜2分 | ffprobe＋先頭60秒のコート検出・画角判定。**GPU起動前に安価に不合格・警告を返す**（[10](10-phase0-implementation-plan.md)） |
+| GPUコールドスタート | 1〜2分 × 1回 | ingest〜analyzeは同一コンテナで連続実行 |
+| ingest正規化（HEVC→H.264、NVENC） | 5〜15分 | I/O（R2⇄ワーカーのDL/UL）が支配的。metricsでDL/エンコード/ULを分計 |
+| CV解析（stage1-4） | 15〜30分 | 基準5Hz＋隣接3フレームバースト（TrackNet前提。config/segmentation.v1.yaml） |
 | 編集＋HLS | 数分 | `-c copy` 前提 |
-| **アップロード完了→納品 合計** | **30〜60分** | 目標：実時間の1.0倍以内（[01](01-mvp-scope.md)の指標を再定義） |
+| **アップロード完了→納品 合計** | **25〜50分** | 目標：**max(実時間の1.0倍, 15分)以内**（短尺動画は固定オーバーヘッドがあるため下限フロアを置く） |
 
 ## データモデル（主要エンティティ）
 
 ```
 User ─┬─ Match ─┬─ VideoAsset (original / normalized / edited / highlight / hls / thumbnail)
+      │         │    ※ PointRecord の player は匿名トラックID。アカウントへの紐付けは
+      │         │      クレーム（本人申告＋撮影者承認）時のみ（[09](09-go-to-market.md)）
       │         ├─ AnalysisJob (stage, status, progress)
       │         ├─ EventStream (JSON, versioned)
       │         ├─ PointRecord (ユーザー修正含む)

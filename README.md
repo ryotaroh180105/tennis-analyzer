@@ -41,3 +41,6 @@
 ## ステータス
 
 設計フェーズ。実装は [01-mvp-scope.md](docs/design/01-mvp-scope.md) のフェーズ計画に従って着手する。
+
+※ `docs/overview/design-overview.html` は設計サマリのスナップショット（生成物）であり、
+最新とは限らない。**正は常に `docs/design/` と `config/`**。

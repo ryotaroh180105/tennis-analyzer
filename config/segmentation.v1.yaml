@@ -1,0 +1,37 @@
+# ポイント区間分割パラメータ v1（Phase 0で使用）
+# 設計: docs/design/10-phase0-implementation-plan.md
+# 初期値はチューニング前提の暫定値。変更はこのファイルの新バージョン追加で行う。
+
+version: 1
+
+sampling:
+  base_hz: 5                # 活動量サンプリングの基準レート
+  ball_burst_frames: 3      # TrackNet系は隣接3フレーム入力が前提のため、
+                            # 基準レートの各時点で隣接フレームをバースト取得する
+
+activity:
+  # 合成活動量 = w_person * person_motion + w_ball * ball_motion（0-1に正規化後）
+  w_person: 0.6
+  w_ball: 0.4
+  smoothing_window_s: 2.0   # 移動平均窓
+  on_threshold: 0.35        # これ以上でプレー中と判定（ヒステリシス上限）
+  off_threshold: 0.20       # これ未満でデッドタイムと判定（ヒステリシス下限）
+  min_play_s: 4.0           # これより短いプレー区間はノイズとして棄却
+  min_dead_s: 5.0           # これより短いデッドタイムは前後のプレー区間と結合
+
+buffers:
+  pre_s: 2.0                # 区間開始前バッファ（プレーを削らない方向）
+  post_s: 1.5               # 区間終了後バッファ
+
+merge:
+  min_gap_s: 3.0            # スナップ後の区間間隔がこれ未満なら結合（クリップ重複防止）
+
+# コート検出不能時（縮退モード）の差し替えパラメータ。
+# ball_motion が使えず「コート内」の限定もできないため、
+# 画面中央ROIの人物モーションのみで判定する。
+degraded:
+  w_person: 1.0
+  w_ball: 0.0
+  center_roi: [0.15, 0.10, 0.85, 0.95]   # [x1,y1,x2,y2] 正規化。隣接コート・通行人の混入を抑制
+  on_threshold: 0.40
+  off_threshold: 0.25
