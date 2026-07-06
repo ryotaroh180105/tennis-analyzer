@@ -35,8 +35,11 @@
 | [docs/design/08-operations.md](docs/design/08-operations.md) | 導入・保守・運用（コストモデル・品質ゲート） |
 | [docs/design/09-go-to-market.md](docs/design/09-go-to-market.md) | マーケティング・差別化・拡張戦略 |
 | [docs/design/10-phase0-implementation-plan.md](docs/design/10-phase0-implementation-plan.md) | Phase 0 実装仕様（実装はここから） |
+| [docs/design/11-ui-design.md](docs/design/11-ui-design.md) | UI設計（画面仕様・デザイントークン・区間タイムライン） |
 | [config/taxonomy.v1.yaml](config/taxonomy.v1.yaml) | ミス分類定義（v1初期粒度） |
 | [config/advice-rules.v1.yaml](config/advice-rules.v1.yaml) | アドバイス発火ルール定義 |
+| [config/segmentation.v1.yaml](config/segmentation.v1.yaml) | 区間判定パラメータ |
+| [config/court-spec.v1.yaml](config/court-spec.v1.yaml) | コート寸法・ライン定義 |
 
 ## ステータス
 

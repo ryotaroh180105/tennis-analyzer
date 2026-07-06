@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tennis Analyzer — UIモック（Phase 0）</title>
+<style>
+  :root {
+    --surface: #f6f8f4;
+    --surface-raised: #ffffff;
+    --ink: #17211c;
+    --ink-secondary: #5a6b61;
+    --court: #2e7d5b;
+    --court-soft: #e4efe8;
+    --sand: #c9a86a;
+    --sand-soft: #f2e9d6;
+    --ball: #d9e021;
+    --alert: #c2472e;
+    --line-hair: #dde5dd;
+    --font: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  }
+  [data-theme="dark"] {
+    --surface: #0f1713;
+    --surface-raised: #1a241e;
+    --ink: #eef3ef;
+    --ink-secondary: #9fb0a5;
+    --court: #3c9a72;
+    --court-soft: #1d2f26;
+    --sand: #8a7347;
+    --sand-soft: #2a2419;
+    --ball: #e4ec3a;
+    --alert: #e06a50;
+    --line-hair: #2a362e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface: #0f1713;
+      --surface-raised: #1a241e;
+      --ink: #eef3ef;
+      --ink-secondary: #9fb0a5;
+      --court: #3c9a72;
+      --court-soft: #1d2f26;
+      --sand: #8a7347;
+      --sand-soft: #2a2419;
+      --ball: #e4ec3a;
+      --alert: #e06a50;
+      --line-hair: #2a362e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: var(--font);
+    background: var(--surface);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px 16px 80px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .subtitle { color: var(--ink-secondary); font-size: 14px; margin: 0 0 28px; }
+  .toolbar {
+    display: flex; gap: 8px; margin-bottom: 32px; flex-wrap: wrap;
+  }
+  .toolbar button {
+    font-family: inherit; font-size: 13px; padding: 6px 14px; border-radius: 999px;
+    border: 1px solid var(--line-hair); background: var(--surface-raised); color: var(--ink);
+    cursor: pointer;
+  }
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 28px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .screen-label {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-secondary); margin-bottom: 10px; font-weight: 600;
+  }
+  .phone {
+    width: 100%;
+    max-width: 300px;
+    aspect-ratio: 9 / 19.5;
+    background: var(--surface-raised);
+    border-radius: 28px;
+    border: 1px solid var(--line-hair);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .statusbar { height: 20px; flex-shrink: 0; }
+  .screen-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+
+  /* ---- Home ---- */
+  .home-header {
+    padding: 14px 16px 10px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .home-header .title { font-size: 17px; font-weight: 700; }
+  .quota-chip {
+    font-size: 11px; background: var(--court-soft); color: var(--court);
+    padding: 3px 9px; border-radius: 999px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .match-list { flex: 1; overflow-y: auto; padding: 4px 16px 90px; display: flex; flex-direction: column; gap: 10px; }
+  .match-card {
+    background: var(--surface); border: 1px solid var(--line-hair); border-radius: 12px;
+    padding: 10px; display: flex; gap: 10px; align-items: center;
+  }
+  .thumb {
+    width: 52px; height: 52px; border-radius: 8px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--court), var(--court-soft));
+  }
+  .match-meta { flex: 1; min-width: 0; }
+  .match-title { font-size: 13px; font-weight: 600; margin: 0 0 2px; }
+  .match-date { font-size: 11px; color: var(--ink-secondary); margin: 0; }
+  .status-chip { font-size: 10px; padding: 2px 7px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+  .status-chip.done { background: var(--court-soft); color: var(--court); }
+  .status-chip.progress { background: var(--sand-soft); color: var(--sand); }
+  .mini-ribbon { display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin-top: 5px; }
+  .mini-ribbon .p { background: var(--court); }
+  .mini-ribbon .d { background: var(--sand); opacity: 0.6; }
+
+  .action-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 12px 16px 18px; background: linear-gradient(to top, var(--surface-raised) 60%, transparent);
+    display: flex; justify-content: center;
+  }
+  .fab {
+    background: var(--court); color: #fff; border: none; border-radius: 999px;
+    padding: 13px 26px; font-size: 14px; font-weight: 700; font-family: inherit;
+    display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(46,125,91,0.35);
+  }
+
+  /* ---- Upload sheet ---- */
+  .sheet-backdrop { flex: 1; background: rgba(0,0,0,0.35); display: flex; align-items: flex-end; }
+  .sheet {
+    width: 100%; background: var(--surface-raised); border-radius: 20px 20px 0 0;
+    padding: 18px 18px 26px;
+  }
+  .sheet-handle { width: 36px; height: 4px; background: var(--line-hair); border-radius: 2px; margin: 0 auto 16px; }
+  .sheet-title { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+  .sheet-sub { font-size: 12px; color: var(--ink-secondary); margin: 0 0 16px; }
+  .progress-track {
+    height: 8px; background: var(--sand-soft); border-radius: 4px; overflow: hidden; margin-bottom: 10px;
+  }
+  .progress-fill { height: 100%; width: 34%; background: var(--court); border-radius: 4px; }
+  .progress-note { font-size: 12px; color: var(--ink-secondary); margin: 0; }
+  .wifi-card {
+    background: var(--sand-soft); border-radius: 12px; padding: 12px; margin-top: 14px;
+    font-size: 12px; color: var(--ink); line-height: 1.5;
+  }
+  .wifi-card .link { color: var(--court); font-weight: 700; margin-top: 6px; display: inline-block; }
+
+  /* ---- Match detail with ribbon ---- */
+  .detail-header { padding: 14px 16px 6px; display: flex; align-items: center; gap: 8px; }
+  .back-dot { width: 26px; height: 26px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line-hair); }
+  .detail-title { font-size: 14px; font-weight: 700; }
+  .player {
+    margin: 8px 16px; aspect-ratio: 16/10; border-radius: 12px; background: #10221a;
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  .play-btn { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.92); display: flex; align-items: center; justify-content: center; }
+  .play-btn::after { content: ""; border-left: 12px solid var(--court); border-top: 7px solid transparent; border-bottom: 7px solid transparent; margin-left: 3px; }
+  .hero-stat { padding: 10px 16px 4px; }
+  .hero-stat .label { font-size: 11px; color: var(--ink-secondary); }
+  .hero-stat .value { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .hero-stat .value .from { font-size: 15px; color: var(--ink-secondary); font-weight: 500; margin-right: 6px; }
+
+  .ribbon-wrap { padding: 10px 16px; }
+  .ribbon-label { font-size: 10px; color: var(--ink-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .ribbon {
+    display: flex; height: 22px; border-radius: 6px; overflow: hidden; position: relative;
+  }
+  .ribbon .seg { height: 100%; }
+  .ribbon .seg.court { background: var(--court); }
+  .ribbon .seg.dead { background: var(--sand); opacity: 0.55; }
+  .ribbon .seg.low { background: var(--court); opacity: 0.45; background-image: repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 5px); }
+  .ribbon .playhead {
+    position: absolute; top: -3px; width: 10px; height: 28px; background: var(--ball);
+    border-radius: 3px; box-shadow: 0 0 0 2px var(--surface-raised);
+  }
+
+  .action-row { display: flex; gap: 8px; padding: 12px 16px; }
+  .btn-secondary {
+    flex: 1; font-family: inherit; font-size: 12px; font-weight: 700; padding: 10px;
+    border-radius: 10px; border: 1px solid var(--line-hair); background: var(--surface-raised); color: var(--ink);
+  }
+  .btn-primary {
+    flex: 1; font-family: inherit; font-size: 12px; font-weight: 700; padding: 10px;
+    border-radius: 10px; border: none; background: var(--court); color: #fff;
+  }
+  .info-bar {
+    margin: 4px 16px 0; padding: 10px 12px; background: var(--sand-soft); border-radius: 10px;
+    font-size: 11px; line-height: 1.5; color: var(--ink);
+    display: flex; gap: 8px;
+  }
+  .info-bar .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sand); flex-shrink: 0; margin-top: 4px; }
+  .stage-note { text-align: center; font-size: 11px; color: var(--ink-secondary); padding: 8px 16px 0; }
+
+  /* ---- Segment editor ---- */
+  .editor-player { margin: 12px 16px 4px; aspect-ratio: 16/9; border-radius: 12px; background: #10221a; }
+  .editor-ribbon-zone { margin: 20px 16px 8px; }
+  .big-ribbon { display: flex; height: 44px; border-radius: 10px; overflow: hidden; position: relative; }
+  .big-ribbon .seg.court { background: var(--court); }
+  .big-ribbon .seg.dead { background: var(--sand-soft); border-top: 1px dashed var(--sand); border-bottom: 1px dashed var(--sand); }
+  .handle {
+    position: absolute; top: -4px; width: 6px; height: 52px; background: var(--ink);
+    border-radius: 3px; opacity: 0.8;
+  }
+  .editor-hint { font-size: 11px; color: var(--ink-secondary); text-align: center; margin-top: 8px; }
+  .undo-row { display: flex; justify-content: center; gap: 16px; margin: 14px 0 6px; font-size: 11px; color: var(--ink-secondary); }
+
+  /* ---- Share page ---- */
+  .share-frame { background: var(--surface-raised); border-radius: 12px; overflow: hidden; }
+  .share-hero { aspect-ratio: 16/9; background: #10221a; display: flex; align-items: center; justify-content: center; }
+  .share-body { padding: 14px 16px; }
+  .share-title { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
+  .share-sub { font-size: 11px; color: var(--ink-secondary); margin: 0 0 14px; }
+  .cta-card {
+    background: var(--court); color: #fff; border-radius: 12px; padding: 14px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .cta-card .headline { font-size: 13px; font-weight: 700; }
+  .cta-card .sub { font-size: 11px; opacity: 0.9; }
+  .cta-btn {
+    background: #fff; color: var(--court); font-family: inherit; font-weight: 700;
+    font-size: 12px; padding: 9px; border-radius: 8px; border: none; text-align: center;
+  }
+  .delete-link { font-size: 10px; color: var(--ink-secondary); text-align: center; margin-top: 14px; }
+
+  /* ---- Tokens strip ---- */
+  .tokens {
+    max-width: 1400px; margin: 60px auto 0; display: flex; flex-wrap: wrap; gap: 10px;
+  }
+  .token {
+    display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 6px 10px;
+    border-radius: 8px; background: var(--surface-raised); border: 1px solid var(--line-hair);
+  }
+  .swatch { width: 16px; height: 16px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); }
+  footer { max-width: 1400px; margin: 40px auto 0; font-size: 12px; color: var(--ink-secondary); text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Tennis Analyzer — UIモック（Phase 0）</h1>
+<p class="subtitle">docs/design/11-ui-design.md の画面仕様に対応。テーマ切替で挙動を確認できます。</p>
+
+<div class="toolbar">
+  <button onclick="document.documentElement.setAttribute('data-theme','light')">Light</button>
+  <button onclick="document.documentElement.setAttribute('data-theme','dark')">Dark</button>
+  <button onclick="document.documentElement.removeAttribute('data-theme')">System</button>
+</div>
+
+<div class="gallery">
+
+  <div>
+    <div class="screen-label">1. ホーム（試合一覧）</div>
+    <div class="phone">
+      <div class="statusbar"></div>
+      <div class="screen-content">
+        <div class="home-header">
+          <div class="title">試合</div>
+          <div class="quota-chip">今月 1/1 本</div>
+        </div>
+        <div class="match-list">
+          <div class="match-card">
+            <div class="thumb"></div>
+            <div class="match-meta">
+              <p class="match-title">サークル練習試合</p>
+              <p class="match-date">7月3日・42分</p>
+              <div class="mini-ribbon">
+                <div class="p" style="width:60%"></div><div class="d" style="width:8%"></div>
+                <div class="p" style="width:22%"></div><div class="d" style="width:10%"></div>
+              </div>
+            </div>
+            <div class="status-chip done">完了</div>
+          </div>
+          <div class="match-card">
+            <div class="thumb" style="background:linear-gradient(135deg, var(--sand), var(--sand-soft))"></div>
+            <div class="match-meta">
+              <p class="match-title">土曜レッスン</p>
+              <p class="match-date">7月1日・58分</p>
+            </div>
+            <div class="status-chip progress">解析中</div>
+          </div>
+          <div class="match-card">
+            <div class="thumb"></div>
+            <div class="match-meta">
+              <p class="match-title">初回アップロード</p>
+              <p class="match-date">6月28日・31分</p>
+              <div class="mini-ribbon">
+                <div class="p" style="width:40%"></div><div class="d" style="width:15%"></div>
+                <div class="p" style="width:45%"></div>
+              </div>
+            </div>
+            <div class="status-chip done">完了</div>
+          </div>
+        </div>
+        <div class="action-bar">
+          <button class="fab">＋ 動画を追加</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="screen-label">2. アップロード（Wi-Fi待ち）</div>
+    <div class="phone">
+      <div class="statusbar"></div>
+      <div class="screen-content">
+        <div class="sheet-backdrop">
+          <div class="sheet">
+            <div class="sheet-handle"></div>
+            <p class="sheet-title">match_0703.mp4</p>
+            <p class="sheet-sub">4.2GB・約58分</p>
+            <div class="progress-track"><div class="progress-fill"></div></div>
+            <p class="progress-note">送信中 34% — アプリを閉じても続きます</p>
+            <div class="wifi-card">
+              Wi-Fiを待っています。接続したら自動で送信します。
+              <span class="link">モバイル回線で今すぐ送る →</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="screen-label">3. 試合詳細（区間リボン／完了）</div>
+    <div class="phone">
+      <div class="statusbar"></div>
+      <div class="screen-content">
+        <div class="detail-header">
+          <div class="back-dot"></div>
+          <div class="detail-title">サークル練習試合</div>
+        </div>
+        <div class="player"><div class="play-btn"></div></div>
+        <div class="hero-stat">
+          <div class="label">保存された時間</div>
+          <div class="value"><span class="from">1:42:10 →</span>31:24</div>
+        </div>
+        <div class="ribbon-wrap">
+          <div class="ribbon-label">プレー区間</div>
+          <div class="ribbon">
+            <div class="seg court" style="width:22%"></div>
+            <div class="seg dead" style="width:5%"></div>
+            <div class="seg court" style="width:30%"></div>
+            <div class="seg low" style="width:8%"></div>
+            <div class="seg dead" style="width:6%"></div>
+            <div class="seg court" style="width:29%"></div>
+            <div class="playhead" style="left:38%"></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="btn-secondary">共有する</button>
+          <button class="btn-primary">区間を直す</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="screen-label">3b. 試合詳細（解析中／縮退モード）</div>
+    <div class="phone">
+      <div class="statusbar"></div>
+      <div class="screen-content">
+        <div class="detail-header">
+          <div class="back-dot"></div>
+          <div class="detail-title">土曜レッスン</div>
+        </div>
+        <div class="player" style="background:linear-gradient(135deg,#1a2b22,#10221a);">
+          <div style="color:var(--ball);font-size:12px;font-weight:700;">プレーを探しています（2/3）</div>
+        </div>
+        <div class="info-bar">
+          <div class="dot"></div>
+          <div>コートを見つけられなかったため、動きだけで区間を判定しています。精度が低い場合は区間を直してください。<u>次回の撮り方 →</u></div>
+        </div>
+        <div class="stage-note">閉じてOK。終わったらLINEでお知らせします</div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="screen-label">4. 区間修正</div>
+    <div class="phone">
+      <div class="statusbar"></div>
+      <div class="screen-content">
+        <div class="detail-header">
+          <div class="back-dot"></div>
+          <div class="detail-title">区間を直す</div>
+        </div>
+        <div class="editor-player"></div>
+        <div class="editor-ribbon-zone">
+          <div class="big-ribbon">
+            <div class="seg court" style="width:35%"></div>
+            <div class="seg dead" style="width:12%"></div>
+            <div class="seg court" style="width:53%"></div>
+            <div class="handle" style="left:35%"></div>
+            <div class="handle" style="left:47%"></div>
+          </div>
+          <p class="editor-hint">端をドラッグ／砂をタップで復活／緑を長押しで削除</p>
+        </div>
+        <div class="undo-row"><span>↺ 取り消し</span><span>プレビュー</span></div>
+        <div class="action-row">
+          <button class="btn-primary">この内容で作り直す</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="screen-label">5. 共有視聴ページ（未ログイン）</div>
+    <div class="phone">
+      <div class="statusbar"></div>
+      <div class="screen-content">
+        <div style="padding:14px;">
+          <div class="share-frame">
+            <div class="share-hero"><div class="play-btn"></div></div>
+            <div class="share-body">
+              <p class="share-title">サークル練習試合のハイライト</p>
+              <p class="share-sub">31分・7月3日</p>
+              <div class="ribbon" style="height:16px;margin-bottom:14px;">
+                <div class="seg court" style="width:60%"></div>
+                <div class="seg dead" style="width:8%"></div>
+                <div class="seg court" style="width:32%"></div>
+              </div>
+              <div class="cta-card">
+                <div class="headline">自分の試合も、撮って送るだけ</div>
+                <div class="sub">スマホ1台で編集・ハイライトまで自動生成</div>
+                <div class="cta-btn">はじめる</div>
+              </div>
+              <div class="delete-link">この動画の削除を依頼する</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="tokens">
+  <div class="token"><span class="swatch" style="background:var(--court)"></span>--court（プレー区間・主ボタン）</div>
+  <div class="token"><span class="swatch" style="background:var(--sand)"></span>--sand（デッドタイム・非活性）</div>
+  <div class="token"><span class="swatch" style="background:var(--ball)"></span>--ball（アクセント・現在位置）</div>
+  <div class="token"><span class="swatch" style="background:var(--alert)"></span>--alert（破壊的操作のみ）</div>
+  <div class="token"><span class="swatch" style="background:var(--ink)"></span>--ink</div>
+  <div class="token"><span class="swatch" style="background:var(--surface)"></span>--surface</div>
+</div>
+
+<footer>docs/design/11-ui-design.md 対応スナップショット。正はMarkdown側。</footer>
+
+</body>
+</html>

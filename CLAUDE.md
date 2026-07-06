@@ -22,9 +22,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ドキュメントの読み順
 
-`docs/design/00-overview.md` が意思決定サマリ。個別論点は 01〜10 に分かれており、
+`docs/design/00-overview.md` が意思決定サマリ。個別論点は 01〜11 に分かれており、
 01〜07 はブリーフの論点番号にほぼ対応、08 が導入・保守・運用、09 がマーケ・差別化・拡張戦略、
-**10 が Phase 0 実装仕様（実装セッションはまずこれを読む）**。
+**10 が Phase 0 実装仕様（実装セッションはまずこれを読む）**、11 がUI設計。
 設計変更時は 00 のサマリ表も更新すること。
 
 ## 設計上の不変原則（変更にはユーザー合意が必要）
