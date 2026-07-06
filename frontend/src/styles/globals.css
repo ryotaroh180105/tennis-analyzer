@@ -1,0 +1,77 @@
+/* デザイントークン（11-ui-design.md 準拠） */
+:root {
+  --surface: #f6f8f4;
+  --surface-raised: #ffffff;
+  --ink: #17211c;
+  --ink-secondary: #5a6b61;
+  --court: #2e7d5b;
+  --court-soft: #e4efe8;
+  --sand: #c9a86a;
+  --sand-soft: #f2e9d6;
+  --ball: #d9e021;
+  --alert: #c2472e;
+  --line-hair: #dde5dd;
+  --font: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+
+[data-theme="dark"] {
+  --surface: #0f1713;
+  --surface-raised: #1a241e;
+  --ink: #eef3ef;
+  --ink-secondary: #9fb0a5;
+  --court: #3c9a72;
+  --court-soft: #1d2f26;
+  --sand: #8a7347;
+  --sand-soft: #2a2419;
+  --ball: #e4ec3a;
+  --alert: #e06a50;
+  --line-hair: #2a362e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #0f1713;
+    --surface-raised: #1a241e;
+    --ink: #eef3ef;
+    --ink-secondary: #9fb0a5;
+    --court: #3c9a72;
+    --court-soft: #1d2f26;
+    --sand: #8a7347;
+    --sand-soft: #2a2419;
+    --ball: #e4ec3a;
+    --alert: #e06a50;
+    --line-hair: #2a362e;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  padding: 0;
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font);
+}
+
+body {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+a { color: inherit; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--court);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

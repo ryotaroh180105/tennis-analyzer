@@ -1,0 +1,21 @@
+[project]
+name = "tennis-analyzer-cvworker"
+version = "0.1.0"
+description = "CV pipeline stages (precheck, ingest, stage1-4)"
+requires-python = ">=3.11"
+dependencies = [
+    "opencv-python-headless>=4.10",
+    "numpy>=2.0",
+    "PyYAML>=6.0",
+    "ffmpeg-python>=0.2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["cvpipeline*"]
