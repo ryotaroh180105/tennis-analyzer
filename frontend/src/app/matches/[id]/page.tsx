@@ -173,6 +173,28 @@ export default function MatchDetailPage() {
             </div>
           )}
 
+          {!match.self_side && (
+            <div style={{ margin: "10px 16px 0", padding: "12px", background: "var(--court-soft)", borderRadius: 10 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, margin: "0 0 8px" }}>
+                あなたはどちら側でプレーしていますか？
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => api.setSelfSide(id, "near").then((m) => mutate(m, false))}
+                  style={{ flex: 1, padding: 10, borderRadius: 8, border: "none", background: "var(--court)", color: "#fff", fontSize: 12, fontWeight: 700 }}
+                >
+                  手前（カメラ側）
+                </button>
+                <button
+                  onClick={() => api.setSelfSide(id, "far").then((m) => mutate(m, false))}
+                  style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid var(--line-hair)", background: "var(--surface-raised)", color: "var(--ink)", fontSize: 12, fontWeight: 700 }}
+                >
+                  奥側
+                </button>
+              </div>
+            </div>
+          )}
+
           <p style={{ textAlign: "center", fontSize: 11, color: "var(--ink-secondary)", padding: "8px 16px 0" }}>
             閉じてOK。終わったら通知でお知らせします
           </p>

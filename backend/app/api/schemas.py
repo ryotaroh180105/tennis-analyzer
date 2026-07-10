@@ -49,9 +49,14 @@ class MatchResponse(BaseModel):
     status: str
     failure_reason: dict | None
     preflight_report: dict | None
+    self_side: str | None
     assets: list[dict]
     progress: ProgressInfo
     created_at: datetime
+
+
+class MatchSelfSideRequest(BaseModel):
+    self_side: str  # near | far
 
 
 class SegmentRaw(BaseModel):

@@ -38,6 +38,17 @@ STAGE_TO_STATUS = {
 }
 
 
+class SelfSide(str, enum.Enum):
+    """コートサイドでの自分/相手識別（01 §Phase1: ユーザーが初回指定）。
+
+    court-spec.v1.yaml の baseline_near/baseline_far と対応させる
+    （near=カメラに近い側、far=奥側）。CVのショット帰属（stage5）はこの値を参照する。
+    """
+
+    near = "near"
+    far = "far"
+
+
 class VideoAssetKind(str, enum.Enum):
     original = "original"
     normalized = "normalized"
@@ -62,6 +73,9 @@ class Match(Base):
     # court_not_detected は使わない（縮退モードで続行するため）
     failure_reason: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     preflight_report: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    self_side: Mapped[SelfSide | None] = mapped_column(
+        SAEnum(SelfSide, name="self_side"), nullable=True
+    )
     recorded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

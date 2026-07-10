@@ -19,6 +19,7 @@ export interface Match {
   status: MatchStatus;
   failure_reason: { code: string; message: string } | null;
   preflight_report: { degraded: boolean; checks: Record<string, any> } | null;
+  self_side: "near" | "far" | null;
   assets: MatchAsset[];
   progress: { stage: string | null; pct: number };
   created_at: string;
@@ -60,6 +61,11 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 export const api = {
   listMatches: () => apiFetch<Match[]>("/api/matches"),
   getMatch: (id: string) => apiFetch<Match>(`/api/matches/${id}`),
+  setSelfSide: (id: string, selfSide: "near" | "far") =>
+    apiFetch<Match>(`/api/matches/${id}/self-side`, {
+      method: "PATCH",
+      body: JSON.stringify({ self_side: selfSide }),
+    }),
   createMatch: (uploadId: string, title: string) =>
     apiFetch<{ id: string; status: string }>("/api/matches", {
       method: "POST",

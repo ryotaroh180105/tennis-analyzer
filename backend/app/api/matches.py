@@ -13,6 +13,7 @@ from app.api.schemas import (
     MatchCreateRequest,
     MatchCreateResponse,
     MatchResponse,
+    MatchSelfSideRequest,
     PlaybackResponse,
     ProgressInfo,
     SegmentEffective,
@@ -26,7 +27,7 @@ from app.core.db import get_db
 from app.core.errors import conflict, not_found, rate_limited, validation_error
 from app.jobs.enqueue import enqueue_precheck, enqueue_recut
 from app.models.job import AnalysisJob, JobStage
-from app.models.match import Match, MatchStatus, VideoAsset
+from app.models.match import Match, MatchStatus, SelfSide, VideoAsset
 from app.models.segment import Segment, SegmentOp, SegmentSource
 from app.models.share import ShareLink
 from app.models.upload import Upload, UploadStatus
@@ -107,6 +108,7 @@ def _serialize_match(db: Session, match: Match) -> MatchResponse:
         status=match.status.value,
         failure_reason=match.failure_reason,
         preflight_report=match.preflight_report,
+        self_side=match.self_side.value if match.self_side else None,
         assets=current_assets,
         progress=_compute_progress(db, match),
         created_at=match.created_at,
@@ -173,6 +175,22 @@ def get_match(
     user: User = Depends(get_current_user),
 ) -> MatchResponse:
     match = _get_match_or_404(db, user, match_id)
+    return _serialize_match(db, match)
+
+
+@router.patch("/matches/{match_id}/self-side", response_model=MatchResponse)
+def set_self_side(
+    match_id: uuid.UUID,
+    body: MatchSelfSideRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> MatchResponse:
+    """自分/相手識別（01 §Phase1）。ユーザーが初回指定し、CVのショット帰属に使う。"""
+    match = _get_match_or_404(db, user, match_id)
+    if body.self_side not in ("near", "far"):
+        raise validation_error("self_side must be 'near' or 'far'")
+    match.self_side = SelfSide(body.self_side)
+    db.commit()
     return _serialize_match(db, match)
 
 
