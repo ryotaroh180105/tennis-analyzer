@@ -14,8 +14,8 @@ activity:
   w_person: 0.6
   w_ball: 0.4
   smoothing_window_s: 2.0   # 移動平均窓
-  on_threshold: 0.35        # これ以上でプレー中と判定（ヒステリシス上限）
-  off_threshold: 0.20       # これ未満でデッドタイムと判定（ヒステリシス下限）
+  on_threshold: 0.45        # これ以上でプレー中と判定（ヒステリシス上限）
+  off_threshold: 0.30       # これ未満でデッドタイムと判定（ヒステリシス下限）
   min_play_s: 4.0           # これより短いプレー区間はノイズとして棄却
   min_dead_s: 5.0           # これより短いデッドタイムは前後のプレー区間と結合
 
@@ -33,5 +33,5 @@ degraded:
   w_person: 1.0
   w_ball: 0.0
   center_roi: [0.15, 0.10, 0.85, 0.95]   # [x1,y1,x2,y2] 正規化。隣接コート・通行人の混入を抑制
-  on_threshold: 0.40
-  off_threshold: 0.25
+  on_threshold: 0.50
+  off_threshold: 0.35
