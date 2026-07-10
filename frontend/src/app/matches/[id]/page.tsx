@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import useSWR from "swr";
 import { api, STATUS_LABEL_JA } from "@/lib/api";
+import { FeedbackPanel } from "@/components/FeedbackPanel";
 import { Ribbon } from "@/components/Ribbon";
 import { ScorePad } from "@/components/ScorePad";
 import { StatsPanel } from "@/components/StatsPanel";
@@ -230,6 +231,8 @@ export default function MatchDetailPage() {
           )}
 
           <ScorePad matchId={id} />
+
+          <FeedbackPanel matchId={id} />
 
           <StatsPanel matchId={id} />
 

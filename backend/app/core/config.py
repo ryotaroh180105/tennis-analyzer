@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     gpu_unit_price_amount: float = 0.75  # $0.5〜1.0/h の中央値
     gpu_unit_price_currency: str = "USD"
 
+    # アドバイス文面生成（05 §技術選定: Claude API。CLAUDE.md不変原則4で入力は集計済みJSONのみ）
+    anthropic_api_key: str | None = None
+    anthropic_model: str = "claude-opus-4-8"
+
 
 @lru_cache
 def get_settings() -> Settings:

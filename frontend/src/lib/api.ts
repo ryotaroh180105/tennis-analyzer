@@ -122,6 +122,9 @@ export const api = {
     apiFetch<{ status: string }>(`/api/matches/${matchId}/highlight`, { method: "POST" }),
   getHighlightPlayback: (matchId: string) =>
     apiFetch<{ playlist_url: string; thumbnail_url: string | null }>(`/api/matches/${matchId}/highlight/playback`),
+
+  // 即時フィードバック（07-advice-delivery.md §①。解析完了後に非同期生成される）
+  getFeedback: (matchId: string) => apiFetch<FeedbackResponse>(`/api/matches/${matchId}/feedback`),
 };
 
 export interface ScoreResponse {
@@ -155,6 +158,13 @@ export interface StatsResponse {
   stat_counts: Record<string, number>;
   labels: StatsLabelCount[];
   highlights: StatsHighlight[];
+}
+
+export interface FeedbackResponse {
+  summary: string;
+  tendencies: string[];
+  drill_suggestions: string[];
+  created_at: string;
 }
 
 export const STATUS_LABEL_JA: Record<MatchStatus, string> = {

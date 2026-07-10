@@ -124,6 +124,13 @@ class StatsResponse(BaseModel):
     highlights: list[StatsHighlight]
 
 
+class ImmediateFeedbackResponse(BaseModel):
+    summary: str
+    tendencies: list[str]
+    drill_suggestions: list[str]
+    created_at: datetime
+
+
 class ScorePointRequest(BaseModel):
     winner: str  # self | opponent
 

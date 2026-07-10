@@ -360,6 +360,7 @@ def run_edit(match_id: str) -> None:
         finish_success(db, job, metrics)
 
         _notify_done(db, match)
+        run_immediate_feedback.delay(match_id)
 
     except PermanentJobError as exc:
         if job is not None:
@@ -454,5 +455,52 @@ def run_highlight(match_id: str) -> None:
 
     except Exception:  # noqa: BLE001
         logger.exception("highlight generation failed for %s", match_id)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.jobs.tasks.run_immediate_feedback")
+def run_immediate_feedback(match_id: str) -> None:
+    """解析完了直後の即時フィードバック生成（07 §配信の3層設計 ①）。
+
+    Claude APIには集計済み構造化スタッツJSONのみを渡す（動画・イベントストリームは渡さない、
+    CLAUDE.md 不変原則4）。失敗してもmatch.statusには影響させない（動画閲覧は継続可能に保つ）。
+    """
+    from app.models.advice import AdviceDelivery, AdviceDeliveryKind
+    from app.services.advice_llm import generate_immediate_feedback
+    from app.services.stats import aggregate_stats, compute_match_metrics
+
+    db = SessionLocal()
+    try:
+        match = db.get(Match, uuid.UUID(match_id))
+        if match is None:
+            return
+
+        stream = (
+            db.query(EventStream)
+            .filter(EventStream.match_id == match.id)
+            .order_by(EventStream.version.desc())
+            .first()
+        )
+        if stream is None:
+            return
+
+        stats = aggregate_stats(stream.payload)
+        metrics = compute_match_metrics(stream.payload)
+        feedback = generate_immediate_feedback(stats, metrics)
+
+        db.add(
+            AdviceDelivery(
+                user_id=match.user_id,
+                match_id=match.id,
+                kind=AdviceDeliveryKind.immediate,
+                content=feedback.model_dump(),
+                metrics_snapshot=metrics,
+            )
+        )
+        db.commit()
+
+    except Exception:  # noqa: BLE001
+        logger.exception("immediate feedback generation failed for %s", match_id)
     finally:
         db.close()
