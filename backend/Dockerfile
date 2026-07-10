@@ -12,6 +12,8 @@ WORKDIR /app
 # 動くが、コート検出等cvpipelineの古典的CVコードに依存するため。10 §リポジトリ構成）
 COPY backend/pyproject.toml /app/backend/pyproject.toml
 COPY backend/app /app/backend/app
+COPY backend/alembic.ini /app/backend/alembic.ini
+COPY backend/alembic /app/backend/alembic
 COPY cv-worker/pyproject.toml /app/cv-worker/pyproject.toml
 COPY cv-worker/cvpipeline /app/cv-worker/cvpipeline
 
