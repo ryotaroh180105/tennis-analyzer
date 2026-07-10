@@ -26,6 +26,14 @@ buffers:
 merge:
   min_gap_s: 3.0            # スナップ後の区間間隔がこれ未満なら結合（クリップ重複防止）
 
+# ショット検出（stage5）。ball_motion のピーク検出で「打った瞬間」を近似する
+# 古典的CV代替（TrackNet等の実弾道追跡は未導入。10 §CVパイプライン Phase 0 実装指針）。
+# shot_type/terminalの信頼できる分類には使えないため、shot_count・タイミングの
+# 抽出にとどめる（taxonomy.v1.yaml の min_confidence ゲートでunknownに落とす前提）。
+shots:
+  ball_motion_threshold: 0.35   # これ以上への立ち上がりを「打った」候補とみなす
+  min_interval_s: 0.35          # 直前のショット検出からこれ未満は同一ショットとみなし棄却
+
 # コート検出不能時（縮退モード）の差し替えパラメータ。
 # ball_motion が使えず「コート内」の限定もできないため、
 # 画面中央ROIの人物モーションのみで判定する。

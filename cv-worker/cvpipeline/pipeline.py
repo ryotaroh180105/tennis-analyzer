@@ -4,6 +4,7 @@ from cvpipeline.stages.stage1_court import detect_court
 from cvpipeline.stages.stage2_players import analyze_person_motion
 from cvpipeline.stages.stage3_ball import analyze_ball_motion
 from cvpipeline.stages.stage4_segments import segment_points
+from cvpipeline.stages.stage5_shots import detect_shots
 from cvpipeline.video_io import ffprobe
 
 ANALYSIS_HZ = 5  # config/segmentation.v1.yaml sampling.base_hz と一致させる
@@ -33,6 +34,7 @@ def run_analyze(video_path: str, degraded: bool) -> dict:
     )
 
     seg_result = segment_points(person_result, ball_result, degraded=degraded, duration_s=meta["duration_s"])
+    shots_by_point = detect_shots(seg_result["segments"], ball_result, degraded=degraded)
 
     overall_confidence = (
         0.4 * court.get("confidence", 0.0)
@@ -54,7 +56,13 @@ def run_analyze(video_path: str, degraded: bool) -> dict:
         if court.get("court_detected")
         else None,
         "points": [
-            {"index": i, "clip": {"start_s": s["start_s"], "end_s": s["end_s"]}, "confidence": s["confidence"]}
+            {
+                "index": i,
+                "clip": {"start_s": s["start_s"], "end_s": s["end_s"]},
+                "confidence": s["confidence"],
+                "shots": shots_by_point[i],
+                "shot_count": len(shots_by_point[i]),
+            }
             for i, s in enumerate(seg_result["segments"])
         ],
         "confidence": {

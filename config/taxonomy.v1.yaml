@@ -13,13 +13,15 @@ default_locale: ja
 dimensions:
   - id: shot_type
     source: cv.shot.type
-    values: [serve, forehand, backhand, volley_smash]
+    values: [serve, forehand, backhand, volley_smash, unknown]
+    min_confidence: 0.5        # これ未満は unknown に落とす（現行dev CVはショット識別が弱いため）
     labels:                    # ロケールキー型（i18n対応。ja以外は追加のみで拡張）
       ja:
         serve: サーブ
         forehand: フォアハンド
         backhand: バックハンド
         volley_smash: ボレー・スマッシュ
+        unknown: 未分類
 
   - id: outcome
     source: cv.terminal.type
