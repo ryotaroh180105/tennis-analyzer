@@ -9,3 +9,7 @@ def enqueue_precheck(match_id: str) -> None:
 
 def enqueue_recut(match_id: str) -> None:
     celery_app.send_task("app.jobs.tasks.run_edit", args=[match_id])
+
+
+def enqueue_highlight(match_id: str) -> None:
+    celery_app.send_task("app.jobs.tasks.run_highlight", args=[match_id])

@@ -55,6 +55,8 @@ class VideoAssetKind(str, enum.Enum):
     edited = "edited"
     hls = "hls"
     thumbnail = "thumbnail"
+    highlight = "highlight"
+    highlight_hls = "highlight_hls"
 
 
 class Match(Base):

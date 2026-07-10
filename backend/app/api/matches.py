@@ -25,7 +25,7 @@ from app.api.schemas import (
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.errors import conflict, not_found, rate_limited, validation_error
-from app.jobs.enqueue import enqueue_precheck, enqueue_recut
+from app.jobs.enqueue import enqueue_highlight, enqueue_precheck, enqueue_recut
 from app.models.job import AnalysisJob, JobStage
 from app.models.match import Match, MatchStatus, SelfSide, VideoAsset
 from app.models.segment import Segment, SegmentOp, SegmentSource
@@ -237,6 +237,77 @@ def get_match_playlist(
     from app.services.hls import rewrite_playlist
 
     body = rewrite_playlist(hls_asset.r2_key)
+    return Response(content=body, media_type="application/vnd.apple.mpegurl")
+
+
+@router.post("/matches/{match_id}/highlight", status_code=202)
+def generate_highlight(
+    match_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """ハイライト動画のオンデマンド生成（04-miss-taxonomy.md / 01 §Phase1）。"""
+    match = _get_match_or_404(db, user, match_id)
+    if match.status != MatchStatus.done:
+        raise conflict("highlight can only be requested when the match is done")
+
+    enqueue_highlight(str(match.id))
+    return {"status": "queued"}
+
+
+@router.get("/matches/{match_id}/highlight/playback", response_model=PlaybackResponse)
+def get_highlight_playback(
+    match_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> PlaybackResponse:
+    match = _get_match_or_404(db, user, match_id)
+    settings = get_settings()
+
+    highlight_asset = (
+        db.query(VideoAsset)
+        .filter(VideoAsset.match_id == match.id, VideoAsset.kind == "highlight_hls")
+        .order_by(desc(VideoAsset.generation))
+        .first()
+    )
+    if highlight_asset is None:
+        raise not_found("highlight")
+
+    thumbnail = (
+        db.query(VideoAsset)
+        .filter(VideoAsset.match_id == match.id, VideoAsset.kind == "thumbnail")
+        .order_by(desc(VideoAsset.generation))
+        .first()
+    )
+    thumbnail_url = (
+        storage.presign_get_url(thumbnail.r2_key, settings.share_signed_url_ttl_seconds)
+        if thumbnail
+        else None
+    )
+    return PlaybackResponse(
+        playlist_url=f"/api/matches/{match_id}/highlight/playlist.m3u8", thumbnail_url=thumbnail_url
+    )
+
+
+@router.get("/matches/{match_id}/highlight/playlist.m3u8")
+def get_highlight_playlist(
+    match_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Response:
+    match = _get_match_or_404(db, user, match_id)
+    highlight_asset = (
+        db.query(VideoAsset)
+        .filter(VideoAsset.match_id == match.id, VideoAsset.kind == "highlight_hls")
+        .order_by(desc(VideoAsset.generation))
+        .first()
+    )
+    if highlight_asset is None:
+        raise not_found("highlight")
+
+    from app.services.hls import rewrite_playlist
+
+    body = rewrite_playlist(highlight_asset.r2_key)
     return Response(content=body, media_type="application/vnd.apple.mpegurl")
 
 

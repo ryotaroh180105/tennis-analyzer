@@ -29,6 +29,7 @@ celery_app.conf.update(
     task_routes={
         "app.jobs.tasks.run_precheck": {"queue": "cpu"},
         "app.jobs.tasks.run_edit": {"queue": "cpu"},
+        "app.jobs.tasks.run_highlight": {"queue": "cpu"},
         "app.jobs.tasks.run_ingest": {"queue": "gpu"},
         "app.jobs.tasks.run_analyze": {"queue": "gpu"},
     },

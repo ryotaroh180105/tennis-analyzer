@@ -373,3 +373,86 @@ def run_edit(match_id: str) -> None:
         run_edit.apply_async(args=[match_id], countdown=30)
     finally:
         db.close()
+
+
+@celery_app.task(name="app.jobs.tasks.run_highlight")
+def run_highlight(match_id: str) -> None:
+    """ハイライト動画生成（04-miss-taxonomy.md / 01 §Phase1）。
+
+    editパイプラインとは独立したオンデマンド生成（recutと同様、poison-pill対策の
+    DBジョブ追跡は行わない）。ハイライト候補が無ければ何もせず終了する。
+    """
+    from app.editing.ffmpeg_ops import build_edited_video, build_hls
+    from app.services.stats import aggregate_stats
+
+    db = SessionLocal()
+    try:
+        match = db.get(Match, uuid.UUID(match_id))
+        if match is None:
+            return
+
+        stream = (
+            db.query(EventStream)
+            .filter(EventStream.match_id == match.id)
+            .order_by(EventStream.version.desc())
+            .first()
+        )
+        if stream is None:
+            return
+
+        highlights = aggregate_stats(stream.payload)["highlights"]
+        clips = [
+            {"start_s": h["start_s"], "end_s": h["end_s"]}
+            for h in highlights
+            if h["start_s"] is not None and h["end_s"] is not None
+        ]
+        if not clips:
+            return
+
+        normalized_key, _ = _current_asset_key(db, match.id, "normalized")
+        normalized_asset = (
+            db.query(VideoAsset)
+            .filter(VideoAsset.match_id == match.id, VideoAsset.kind == "normalized")
+            .order_by(VideoAsset.generation.desc())
+            .first()
+        )
+        duration_s = normalized_asset.duration_s
+
+        prev_highlight = _current_asset_key(db, match.id, "highlight")
+        next_generation = (prev_highlight[1] + 1) if prev_highlight else 0
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            normalized_local = str(Path(tmpdir) / "normalized.mp4")
+            storage.download_to_file(normalized_key, normalized_local)
+
+            highlight_local = str(Path(tmpdir) / "highlight.mp4")
+            build_edited_video(normalized_local, clips, duration_s, highlight_local)
+
+            hls_dir = str(Path(tmpdir) / "hls")
+            build_hls(highlight_local, hls_dir)
+
+            highlight_key = f"matches/{match.id}/gen{next_generation}/highlight.mp4"
+            storage.upload_file(highlight_local, highlight_key, content_type="video/mp4")
+
+            hls_prefix = f"matches/{match.id}/gen{next_generation}/highlight_hls"
+            for f in Path(hls_dir).iterdir():
+                content_type = "application/vnd.apple.mpegurl" if f.suffix == ".m3u8" else "video/mp2t"
+                storage.upload_file(str(f), f"{hls_prefix}/{f.name}", content_type=content_type)
+
+        db.add(
+            VideoAsset(match_id=match.id, kind="highlight", generation=next_generation, r2_key=highlight_key)
+        )
+        db.add(
+            VideoAsset(
+                match_id=match.id,
+                kind="highlight_hls",
+                generation=next_generation,
+                r2_key=f"{hls_prefix}/playlist.m3u8",
+            )
+        )
+        db.commit()
+
+    except Exception:  # noqa: BLE001
+        logger.exception("highlight generation failed for %s", match_id)
+    finally:
+        db.close()
