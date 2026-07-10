@@ -40,6 +40,10 @@ export function getResumableUpload(): PendingUpload | null {
   return loadPending();
 }
 
+export function cancelPendingUpload(): void {
+  clearPending();
+}
+
 export async function uploadFile(
   file: File,
   onProgress: (p: UploadProgress) => void

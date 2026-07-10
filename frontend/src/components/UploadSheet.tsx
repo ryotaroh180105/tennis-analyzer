@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { isOnWifi, uploadFile, type UploadProgress } from "@/lib/uploader";
+import { cancelPendingUpload, isOnWifi, uploadFile, type UploadProgress } from "@/lib/uploader";
 
 interface UploadSheetProps {
   onClose: () => void;
@@ -36,6 +36,15 @@ export function UploadSheet({ onClose, onCreated }: UploadSheetProps) {
     startUpload(f);
   };
 
+  const handleCancel = () => {
+    cancelPendingUpload();
+    setFile(null);
+    setProgress(null);
+    setError(null);
+    setWaitingForWifi(false);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
   const pct = progress ? Math.round((progress.uploadedBytes / progress.totalBytes) * 100) : 0;
 
   return (
@@ -48,7 +57,7 @@ export function UploadSheet({ onClose, onCreated }: UploadSheetProps) {
         alignItems: "flex-end",
         zIndex: 50,
       }}
-      onClick={(e) => e.target === e.currentTarget && !progress && onClose()}
+      onClick={(e) => e.target === e.currentTarget && (!progress || progress.status === "error") && onClose()}
     >
       <div
         style={{
@@ -150,20 +159,36 @@ export function UploadSheet({ onClose, onCreated }: UploadSheetProps) {
                 <p style={{ fontSize: 12, color: "var(--alert)", margin: "0 0 8px" }}>
                   送信できませんでした（{error || progress?.message}）。
                 </p>
-                <button
-                  onClick={() => startUpload(file)}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    border: "none",
-                    background: "var(--court)",
-                    color: "#fff",
-                    fontWeight: 700,
-                    fontSize: 12,
-                  }}
-                >
-                  もう一度試す
-                </button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => startUpload(file)}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: "var(--court)",
+                      color: "#fff",
+                      fontWeight: 700,
+                      fontSize: 12,
+                    }}
+                  >
+                    もう一度試す
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: 8,
+                      border: "1px solid var(--line-hair)",
+                      background: "none",
+                      color: "var(--ink-secondary)",
+                      fontWeight: 700,
+                      fontSize: 12,
+                    }}
+                  >
+                    別の動画を選ぶ
+                  </button>
+                </div>
               </div>
             )}
           </>
