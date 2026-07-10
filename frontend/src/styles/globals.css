@@ -1,16 +1,18 @@
-/* デザイントークン（11-ui-design.md 準拠） */
+/* デザイントークン（11-ui-design.md 準拠）
+   大衆向けの明るいUIを既定にする（OSがダークモードでも自動追従しない。
+   ダーク切替のUIを持つまでは [data-theme="dark"] は明示指定時のみ使う）。 */
 :root {
-  --surface: #f6f8f4;
+  --surface: #f4faf3;
   --surface-raised: #ffffff;
-  --ink: #17211c;
-  --ink-secondary: #5a6b61;
-  --court: #2e7d5b;
-  --court-soft: #e4efe8;
-  --sand: #c9a86a;
-  --sand-soft: #f2e9d6;
-  --ball: #d9e021;
-  --alert: #c2472e;
-  --line-hair: #dde5dd;
+  --ink: #16241c;
+  --ink-secondary: #5f7267;
+  --court: #1fa25f;
+  --court-soft: #e2f7ea;
+  --sand: #f5a524;
+  --sand-soft: #fff2dc;
+  --ball: #d7e021;
+  --alert: #e5484d;
+  --line-hair: #e0ece2;
   --font: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
 }
 
@@ -21,27 +23,11 @@
   --ink-secondary: #9fb0a5;
   --court: #3c9a72;
   --court-soft: #1d2f26;
-  --sand: #8a7347;
+  --sand: #c98a2e;
   --sand-soft: #2a2419;
   --ball: #e4ec3a;
   --alert: #e06a50;
   --line-hair: #2a362e;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --surface: #0f1713;
-    --surface-raised: #1a241e;
-    --ink: #eef3ef;
-    --ink-secondary: #9fb0a5;
-    --court: #3c9a72;
-    --court-soft: #1d2f26;
-    --sand: #8a7347;
-    --sand-soft: #2a2419;
-    --ball: #e4ec3a;
-    --alert: #e06a50;
-    --line-hair: #2a362e;
-  }
 }
 
 * { box-sizing: border-box; }
