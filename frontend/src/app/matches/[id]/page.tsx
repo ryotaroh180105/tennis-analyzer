@@ -7,6 +7,23 @@ import { api, STATUS_LABEL_JA } from "@/lib/api";
 import { Ribbon } from "@/components/Ribbon";
 import { VideoPlayer } from "@/components/VideoPlayer";
 
+function estimateRemainingMs(createdAt: string, pct: number): number | null {
+  if (pct <= 0) return null;
+  const elapsedMs = Date.now() - new Date(createdAt).getTime();
+  if (elapsedMs <= 0) return null;
+  const totalMs = elapsedMs / (pct / 100);
+  return Math.max(totalMs - elapsedMs, 0);
+}
+
+function formatRemaining(ms: number): string {
+  const totalMin = Math.round(ms / 60000);
+  if (totalMin < 1) return "まもなく完了";
+  if (totalMin < 60) return `残り目安 ${totalMin}分`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `残り目安 ${h}時間${m > 0 ? `${m}分` : ""}`;
+}
+
 function formatDuration(s: number): string {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
@@ -102,6 +119,35 @@ export default function MatchDetailPage() {
           >
             <div style={{ color: "var(--ball)", fontSize: 12, fontWeight: 700 }}>
               {STATUS_LABEL_JA[match.status]}
+            </div>
+          </div>
+
+          <div style={{ margin: "0 16px", padding: "0 16px" }}>
+            <div style={{ height: 6, background: "var(--sand-soft)", borderRadius: 3, overflow: "hidden" }}>
+              <div
+                style={{
+                  height: "100%",
+                  width: `${match.progress.pct}%`,
+                  background: "var(--court)",
+                  borderRadius: 3,
+                  transition: "width 0.5s ease",
+                }}
+              />
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 11,
+                color: "var(--ink-secondary)",
+                marginTop: 4,
+              }}
+            >
+              <span>{match.progress.pct}%</span>
+              {(() => {
+                const remaining = estimateRemainingMs(match.created_at, match.progress.pct);
+                return remaining != null ? <span>{formatRemaining(remaining)}</span> : null;
+              })()}
             </div>
           </div>
 

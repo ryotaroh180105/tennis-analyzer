@@ -8,6 +8,9 @@ celery_app = Celery(
     "tennis_analyzer",
     broker=settings.redis_url,
     backend=settings.redis_url,
+    # ワーカー起動時（celery -A app.jobs.celery_app worker）にタスク定義を読み込ませる。
+    # これが無いと @celery_app.task のデコレータが実行されずタスク未登録エラーになる。
+    include=["app.jobs.tasks"],
 )
 
 celery_app.conf.update(
