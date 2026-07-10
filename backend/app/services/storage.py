@@ -28,6 +28,20 @@ def get_s3_client():
     )
 
 
+@lru_cache
+def get_s3_public_client():
+    """署名付きURL生成専用クライアント。ブラウザから直接叩かれるため、
+    Dockerサービス名（例: minio:9000）ではなくホストから到達可能なエンドポイントを使う。"""
+    return boto3.client(
+        "s3",
+        endpoint_url=settings.s3_public_endpoint_url or settings.s3_endpoint_url,
+        aws_access_key_id=settings.s3_access_key,
+        aws_secret_access_key=settings.s3_secret_key,
+        region_name=settings.s3_region,
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+    )
+
+
 def ensure_bucket() -> None:
     """R2の `region="auto"` はAWSのLocationConstraint列挙値として無効なため、
     バケット作成リクエストの地域と不整合になりうる（実機検証で判明）。
@@ -67,7 +81,7 @@ def create_multipart_upload(key: str, content_type: str) -> str:
 
 
 def presign_part_url(key: str, r2_upload_id: str, part_number: int, expires_in: int = 3600) -> str:
-    client = get_s3_client()
+    client = get_s3_public_client()
     return client.generate_presigned_url(
         "upload_part",
         Params={
@@ -115,7 +129,7 @@ def abort_multipart_upload(key: str, r2_upload_id: str) -> None:
 
 
 def presign_get_url(key: str, expires_in: int) -> str:
-    client = get_s3_client()
+    client = get_s3_public_client()
     return client.generate_presigned_url(
         "get_object", Params={"Bucket": settings.s3_bucket, "Key": key}, ExpiresIn=expires_in
     )

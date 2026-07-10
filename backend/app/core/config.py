@@ -14,6 +14,9 @@ class Settings(BaseSettings):
 
     # S3互換ストレージ（本番はCloudflare R2、devはMinIO）
     s3_endpoint_url: str = "http://minio:9000"
+    # ブラウザが直接叩く署名付きURL用のエンドポイント（Dockerサービス名はホストから解決できないため）。
+    # 未設定時は s3_endpoint_url にフォールバック（本番のR2はブラウザからも同一URLで到達可能なため不要）。
+    s3_public_endpoint_url: str | None = None
     s3_access_key: str = "minioadmin"
     s3_secret_key: str = "minioadmin"
     s3_bucket: str = "tennis-analyzer"
