@@ -1,6 +1,6 @@
 """スタッツ集計のユニットテスト。"""
 
-from app.services.stats import aggregate_stats
+from app.services.stats import aggregate_stats, compute_match_metrics
 
 
 def _payload(points):
@@ -77,3 +77,55 @@ def test_empty_points():
     assert result["total_points"] == 0
     assert result["unclassified_points"] == 0
     assert result["highlights"] == []
+
+
+def test_compute_match_metrics_serve_fault_rate():
+    payload = _payload(
+        [
+            {
+                "index": 0,
+                "clip": {"start_s": 0.0, "end_s": 5.0},
+                "shot_count": 1,
+                "shots": [{"index": 0, "type": "serve", "type_confidence": 1.0, "terminal": {"type": "net", "confidence": 0.9}}],
+            },
+            {
+                "index": 1,
+                "clip": {"start_s": 5.0, "end_s": 10.0},
+                "shot_count": 2,
+                "shots": [
+                    {"index": 0, "type": "serve", "type_confidence": 1.0},
+                    {"index": 1, "type": "forehand", "type_confidence": 0.9, "terminal": {"type": "winner", "confidence": 0.9}},
+                ],
+            },
+        ]
+    )
+    metrics = compute_match_metrics(payload)
+    assert metrics["points"] == 2
+    assert metrics["serve_fault_rate"] == 0.5
+    assert metrics["double_faults"] is None
+    assert metrics["loss_rate_by_rally"] == {}
+
+
+def test_compute_match_metrics_unforced_error_rate_by_shot_type():
+    payload = _payload(
+        [
+            {
+                "index": 0,
+                "clip": {"start_s": 0.0, "end_s": 5.0},
+                "shot_count": 2,
+                "shots": [
+                    {"index": 0, "type": "serve", "type_confidence": 1.0},
+                    {"index": 1, "type": "forehand", "type_confidence": 0.9, "terminal": {"type": "net", "confidence": 0.9}},
+                ],
+            }
+        ]
+    )
+    metrics = compute_match_metrics(payload)
+    assert metrics["by_shot_type"]["forehand"]["unforced_error_rate"] == 1.0
+
+
+def test_compute_match_metrics_no_serves_gives_none_rate():
+    metrics = compute_match_metrics(_payload([]))
+    assert metrics["points"] == 0
+    assert metrics["serve_fault_rate"] is None
+    assert metrics["by_shot_type"] == {}
