@@ -94,3 +94,17 @@ class ShareLinkResponse(BaseModel):
 class PlaybackResponse(BaseModel):
     playlist_url: str
     thumbnail_url: str | None
+
+
+class ScorePointRequest(BaseModel):
+    winner: str  # self | opponent
+
+
+class ScoreResponse(BaseModel):
+    completed_sets: list[dict]
+    current_set_games: dict
+    current_game: dict
+    current_game_display: dict | None
+    tiebreak: dict | None
+    match_winner: str | None
+    total_points: int

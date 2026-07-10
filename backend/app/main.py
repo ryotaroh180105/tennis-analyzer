@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import auth, matches, share, uploads
+from app.api import auth, matches, score, share, uploads
 from app.services import storage
 
 logging.basicConfig(level=logging.INFO)
@@ -23,6 +23,7 @@ app = FastAPI(title="Tennis Analyzer API", version="0.1.0", lifespan=lifespan)
 app.include_router(auth.router)
 app.include_router(uploads.router)
 app.include_router(matches.router)
+app.include_router(score.router)
 app.include_router(share.router)
 
 

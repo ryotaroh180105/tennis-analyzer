@@ -5,6 +5,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { api, STATUS_LABEL_JA } from "@/lib/api";
 import { Ribbon } from "@/components/Ribbon";
+import { ScorePad } from "@/components/ScorePad";
 import { VideoPlayer } from "@/components/VideoPlayer";
 
 function estimateRemainingMs(createdAt: string, pct: number): number | null {
@@ -204,6 +205,8 @@ export default function MatchDetailPage() {
               <Ribbon durationS={normalizedAsset.duration_s} segments={segments.effective} />
             </div>
           )}
+
+          <ScorePad matchId={id} />
 
           <div style={{ display: "flex", gap: 8, padding: "12px 16px" }}>
             <button

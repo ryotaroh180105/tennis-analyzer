@@ -99,7 +99,27 @@ export const api = {
     ),
   completeUpload: (uploadId: string) =>
     apiFetch<void>(`/api/uploads/${uploadId}/complete`, { method: "POST" }),
+
+  // スコア半自動入力（10 §API契約 / 01 §Phase1: 自動判定はせずワンタップ入力）
+  getScore: (matchId: string) => apiFetch<ScoreResponse>(`/api/matches/${matchId}/score`),
+  addScorePoint: (matchId: string, winner: "self" | "opponent") =>
+    apiFetch<ScoreResponse>(`/api/matches/${matchId}/score/points`, {
+      method: "POST",
+      body: JSON.stringify({ winner }),
+    }),
+  undoScorePoint: (matchId: string) =>
+    apiFetch<ScoreResponse>(`/api/matches/${matchId}/score/points/last`, { method: "DELETE" }),
 };
+
+export interface ScoreResponse {
+  completed_sets: Array<{ self: number; opponent: number }>;
+  current_set_games: { self: number; opponent: number };
+  current_game: { self: number; opponent: number };
+  current_game_display: { self: string; opponent: string } | null;
+  tiebreak: { self: number; opponent: number } | null;
+  match_winner: "self" | "opponent" | null;
+  total_points: number;
+}
 
 export const STATUS_LABEL_JA: Record<MatchStatus, string> = {
   queued: "動画を確認しています",
