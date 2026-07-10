@@ -34,6 +34,27 @@ class ImmediateFeedback(BaseModel):
     drill_suggestions: list[str] = Field(description="次回試すと良い具体的なドリル提案。最大2件。")
 
 
+WEEKLY_DIGEST_SYSTEM_PROMPT = """あなたは日本のテニス愛好家向けアプリのコーチアシスタントです。
+直近の試合の集計推移（JSON）から、毎週日曜夜に届ける短いダイジェストを作成します。
+
+トーン・制約（厳守）：
+- 断定しない。「〜の傾向が見られました」調にする。
+- positive_pointは必ず具体的な中身を書く（空にしない）。指標が改善した材料があればそれを使い、
+  無ければ「今週も試合を撮影・投稿できたこと」自体を前向きに評価する（存在しない改善を捏造しない）。
+- trend_noteは材料（傾向トリガーやスタッツ推移）が無ければ null にする。無理に何か書かない。
+- drill_suggestionはトリガーが発火した場合のみ、その内容に沿って1つ具体的に書く。発火が無ければ null。
+- 選手名・プロ選手との比較・映像そのものへの言及はしない。
+- LINEメッセージとしてそのまま読める自然な日本語の短文にする（箇条書き記号は使わない）。
+"""
+
+
+class WeeklyDigest(BaseModel):
+    headline: str = Field(description="今週の総括。1文。")
+    positive_point: str = Field(description="今週の良かった点。必ず具体的な中身を書く。")
+    trend_note: str | None = Field(default=None, description="スタッツ推移についてのコメント。材料が無ければnull。")
+    drill_suggestion: str | None = Field(default=None, description="トリガー発火時のみの具体的なドリル提案。")
+
+
 @lru_cache
 def _client() -> anthropic.Anthropic:
     settings = get_settings()
@@ -61,5 +82,34 @@ def generate_immediate_feedback(
         system=[{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
         output_format=ImmediateFeedback,
+    )
+    return response.parsed_output
+
+
+def generate_weekly_digest(
+    history: list[dict],
+    trigger: dict | None,
+    praise_fired: bool,
+    client: anthropic.Anthropic | None = None,
+) -> WeeklyDigest:
+    """history: compute_match_metrics() の出力を古い→新しい順に並べたリスト（動画は含まない）。
+
+    trigger: weekly_digest.select_weekly_notifications() が選定した advice-rules.v1.yaml のトリガー定義
+    （発火が無ければNone）。praise_fired: improved_since_last_advice() が真だったか。
+    """
+    settings = get_settings()
+    payload = {
+        "match_count": len(history),
+        "latest": history[-1],
+        "recent_history": history[-5:],
+        "triggered_theme": trigger["description"] if trigger else None,
+        "improved_since_last_advice": praise_fired,
+    }
+    response = (client or _client()).messages.parse(
+        model=settings.anthropic_model,
+        max_tokens=1024,
+        system=[{"type": "text", "text": WEEKLY_DIGEST_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
+        messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
+        output_format=WeeklyDigest,
     )
     return response.parsed_output

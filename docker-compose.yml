@@ -110,6 +110,27 @@ services:
         condition: service_completed_successfully
     command: celery -A app.jobs.celery_app worker -Q cpu --loglevel=info --concurrency=2
 
+  beat:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      <<: *backend_env
+    volumes:
+      - ./config:/app/config:ro
+      - ./backend/app:/app/backend/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # 週次ダイジェスト配信のスケジューラ（07 §配信の3層設計 ②③。advice-rules.v1.yaml準拠）
+    command: celery -A app.jobs.celery_app beat --loglevel=info
+
   worker-gpu:
     build:
       context: .

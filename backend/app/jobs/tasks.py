@@ -504,3 +504,83 @@ def run_immediate_feedback(match_id: str) -> None:
         logger.exception("immediate feedback generation failed for %s", match_id)
     finally:
         db.close()
+
+
+@celery_app.task(name="app.jobs.tasks.run_weekly_digest")
+def run_weekly_digest() -> None:
+    """週次ダイジェストのファンアウト（07 §配信の3層設計 ②③。celery beatから起動）。
+
+    ユーザーごとの本体処理は run_weekly_digest_for_user に委譲し、1ユーザーの失敗が
+    他ユーザーへの配信を止めないようにする。
+    """
+    from app.models.user import User
+
+    db = SessionLocal()
+    try:
+        user_ids = [row[0] for row in db.query(User.id).all()]
+    finally:
+        db.close()
+
+    for user_id in user_ids:
+        run_weekly_digest_for_user.delay(str(user_id))
+
+
+@celery_app.task(name="app.jobs.tasks.run_weekly_digest_for_user")
+def run_weekly_digest_for_user(user_id: str) -> None:
+    """1ユーザー分の週次ダイジェスト選定・生成・配信（07 §配信の3層設計 ②③）。
+
+    「何を言うか」（cooldown_days・週次上限の適用）は services.weekly_digest、
+    「どう言うか」（文面生成）は services.advice_llm が担う。
+    直近試合が無いユーザーには何も送らない。
+    """
+    from app.models.advice import AdviceDelivery, AdviceDeliveryKind
+    from app.models.user import User
+    from app.services.advice_llm import generate_weekly_digest
+    from app.services.weekly_digest import select_weekly_notifications
+
+    db = SessionLocal()
+    try:
+        user = db.get(User, uuid.UUID(user_id))
+        if user is None:
+            return
+
+        selection = select_weekly_notifications(db, user.id)
+        if selection is None:
+            return
+
+        digest = generate_weekly_digest(
+            selection["history"], selection["trigger"], selection["praise_fired"]
+        )
+
+        lines = [digest.headline, "", f"良かった点：{digest.positive_point}"]
+        if digest.trend_note:
+            lines.append(digest.trend_note)
+        if digest.drill_suggestion:
+            lines.append(f"今週のドリル：{digest.drill_suggestion}")
+        notify_user(user, "\n".join(lines))
+
+        latest_metrics = selection["history"][-1]
+        db.add(
+            AdviceDelivery(
+                user_id=user.id,
+                kind=AdviceDeliveryKind.weekly_digest,
+                content=digest.model_dump(),
+                metrics_snapshot=latest_metrics,
+            )
+        )
+        if selection["trigger"] is not None:
+            db.add(
+                AdviceDelivery(
+                    user_id=user.id,
+                    kind=AdviceDeliveryKind.trigger,
+                    trigger_id=selection["trigger"]["id"],
+                    content=digest.model_dump(),
+                    metrics_snapshot=latest_metrics,
+                )
+            )
+        db.commit()
+
+    except Exception:  # noqa: BLE001
+        logger.exception("weekly digest generation failed for user %s", user_id)
+    finally:
+        db.close()
