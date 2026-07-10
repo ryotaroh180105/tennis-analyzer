@@ -115,6 +115,13 @@ export const api = {
     }),
   undoScorePoint: (matchId: string) =>
     apiFetch<ScoreResponse>(`/api/matches/${matchId}/score/points/last`, { method: "DELETE" }),
+
+  // ミス分類スタッツ・ハイライト（04-miss-taxonomy.md / 01 §Phase1）
+  getStats: (matchId: string) => apiFetch<StatsResponse>(`/api/matches/${matchId}/stats`),
+  generateHighlight: (matchId: string) =>
+    apiFetch<{ status: string }>(`/api/matches/${matchId}/highlight`, { method: "POST" }),
+  getHighlightPlayback: (matchId: string) =>
+    apiFetch<{ playlist_url: string; thumbnail_url: string | null }>(`/api/matches/${matchId}/highlight/playback`),
 };
 
 export interface ScoreResponse {
@@ -125,6 +132,29 @@ export interface ScoreResponse {
   tiebreak: { self: number; opponent: number } | null;
   match_winner: "self" | "opponent" | null;
   total_points: number;
+}
+
+export interface StatsHighlight {
+  point_index: number;
+  start_s: number | null;
+  end_s: number | null;
+  label: string | null;
+  importance: string;
+  tags: string[];
+}
+
+export interface StatsLabelCount {
+  label: string;
+  importance: string;
+  count: number;
+}
+
+export interface StatsResponse {
+  total_points: number;
+  unclassified_points: number;
+  stat_counts: Record<string, number>;
+  labels: StatsLabelCount[];
+  highlights: StatsHighlight[];
 }
 
 export const STATUS_LABEL_JA: Record<MatchStatus, string> = {

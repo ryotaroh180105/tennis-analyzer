@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { api, STATUS_LABEL_JA } from "@/lib/api";
 import { Ribbon } from "@/components/Ribbon";
 import { ScorePad } from "@/components/ScorePad";
+import { StatsPanel } from "@/components/StatsPanel";
 import { VideoPlayer } from "@/components/VideoPlayer";
 
 function estimateRemainingMs(createdAt: string, pct: number): number | null {
@@ -229,6 +230,8 @@ export default function MatchDetailPage() {
           )}
 
           <ScorePad matchId={id} />
+
+          <StatsPanel matchId={id} />
 
           <div style={{ display: "flex", gap: 8, padding: "12px 16px" }}>
             <button
