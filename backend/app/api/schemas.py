@@ -101,6 +101,29 @@ class PlaybackResponse(BaseModel):
     thumbnail_url: str | None
 
 
+class StatsHighlight(BaseModel):
+    point_index: int
+    start_s: float | None
+    end_s: float | None
+    label: str | None
+    importance: str
+    tags: list[str]
+
+
+class StatsLabelCount(BaseModel):
+    label: str
+    importance: str
+    count: int
+
+
+class StatsResponse(BaseModel):
+    total_points: int
+    unclassified_points: int
+    stat_counts: dict[str, int]
+    labels: list[StatsLabelCount]
+    highlights: list[StatsHighlight]
+
+
 class ScorePointRequest(BaseModel):
     winner: str  # self | opponent
 
