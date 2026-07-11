@@ -131,34 +131,43 @@ class ImmediateFeedbackResponse(BaseModel):
     created_at: datetime
 
 
-class ServeSessionCreateRequest(BaseModel):
+class FormSessionCreateRequest(BaseModel):
     upload_id: uuid.UUID
     title: str
+    shot_type: str  # serve | forehand | backhand | smash | volley
+    backhand_style: str | None = None  # one_handed | two_handed | auto（backhandのみ）
 
 
-class ServeSessionResponse(BaseModel):
+class FormSessionResponse(BaseModel):
     id: uuid.UUID
     title: str
+    shot_type: str
+    backhand_style: str | None
     status: str
     failure_reason: dict | None
     duration_s: float | None
     created_at: datetime
 
 
-class ServeMetric(BaseModel):
+class FormMetric(BaseModel):
     id: str
     phase: str
     unit: str
     measured: float | None
+    iqr: float | None
     elite_range: list[float]
     status: str
-    confidence: float
+    high_variance: bool
+    valid_swings: int
     advice_key: str
 
 
-class ServeAnalysisResponse(BaseModel):
-    phases: dict
-    metrics: list[ServeMetric]
+class FormAnalysisResponse(BaseModel):
+    shot_type: str
+    dominant_side: str
+    swing_count: int
+    insufficient_data: bool
+    metrics: list[FormMetric]
     feedback_metrics: list[str]
     confidence: dict
     citation_status: str

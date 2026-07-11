@@ -3,15 +3,25 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import useSWR from "swr";
-import { api, SERVE_STATUS_LABEL_JA } from "@/lib/api";
+import {
+  api,
+  FORM_SHOT_TYPE_LABEL_JA,
+  FORM_STATUS_LABEL_JA,
+  type BackhandStyle,
+  type FormShotType,
+} from "@/lib/api";
 import { UploadSheet } from "@/components/UploadSheet";
 
-export default function ServeListPage() {
+const SHOT_TYPES: FormShotType[] = ["serve", "forehand", "backhand", "smash", "volley"];
+
+export default function FormListPage() {
   const router = useRouter();
-  const { data: sessions, mutate } = useSWR("serve-sessions", api.listServeSessions, {
+  const { data: sessions, mutate } = useSWR("form-sessions", api.listFormSessions, {
     refreshInterval: 5000,
   });
   const [showUpload, setShowUpload] = useState(false);
+  const [shotType, setShotType] = useState<FormShotType>("forehand");
+  const [backhandStyle, setBackhandStyle] = useState<BackhandStyle>("auto");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -29,25 +39,70 @@ export default function ServeListPage() {
         >
           ←
         </button>
-        <div style={{ fontSize: 17, fontWeight: 700 }}>サーブ解析</div>
+        <div style={{ fontSize: 17, fontWeight: 700 }}>フォーム解析</div>
       </header>
 
-      <p style={{ padding: "0 16px 12px", fontSize: 12, color: "var(--ink-secondary)", lineHeight: 1.6 }}>
-        斜め後方・近距離から撮ったサーブ動画をアップロードすると、フォームを骨格解析して
+      <p style={{ padding: "0 16px 8px", fontSize: 12, color: "var(--ink-secondary)", lineHeight: 1.6 }}>
+        近距離・単独で撮った練習動画をアップロードすると、フォームを骨格解析して
         参考レンジと比較します（試験運用中の機能です）。
       </p>
+
+      <div style={{ padding: "0 16px 12px" }}>
+        <div style={{ fontSize: 10, color: "var(--ink-secondary)", marginBottom: 6 }}>次にアップロードするショット</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {SHOT_TYPES.map((st) => (
+            <button
+              key={st}
+              onClick={() => setShotType(st)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 999,
+                border: st === shotType ? "none" : "1px solid var(--line-hair)",
+                background: st === shotType ? "var(--sand)" : "var(--surface-raised)",
+                color: st === shotType ? "#fff" : "var(--ink)",
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              {FORM_SHOT_TYPE_LABEL_JA[st]}
+            </button>
+          ))}
+        </div>
+
+        {shotType === "backhand" && (
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            {(["auto", "one_handed", "two_handed"] as BackhandStyle[]).map((style) => (
+              <button
+                key={style}
+                onClick={() => setBackhandStyle(style)}
+                style={{
+                  padding: "5px 10px",
+                  borderRadius: 999,
+                  border: style === backhandStyle ? "none" : "1px solid var(--line-hair)",
+                  background: style === backhandStyle ? "var(--court)" : "var(--surface-raised)",
+                  color: style === backhandStyle ? "#fff" : "var(--ink-secondary)",
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}
+              >
+                {style === "auto" ? "自動判定" : style === "one_handed" ? "片手" : "両手"}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <main style={{ flex: 1, overflowY: "auto", padding: "4px 16px 100px", display: "flex", flexDirection: "column", gap: 10 }}>
         {sessions?.length === 0 && (
           <div style={{ padding: "40px 8px", textAlign: "center", color: "var(--ink-secondary)", fontSize: 13, lineHeight: 1.7 }}>
-            サーブ練習動画を1本アップロードしてみてください。
+            練習動画を1本アップロードしてみてください。
           </div>
         )}
 
         {sessions?.map((s) => (
           <div
             key={s.id}
-            onClick={() => router.push(`/serve/${s.id}`)}
+            onClick={() => router.push(`/form/${s.id}`)}
             style={{
               background: "var(--surface)",
               border: "1px solid var(--line-hair)",
@@ -65,9 +120,17 @@ export default function ServeListPage() {
                 height: 52,
                 borderRadius: 8,
                 flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 10,
+                fontWeight: 700,
+                color: "#fff",
                 background: "linear-gradient(135deg, var(--sand), var(--sand-soft))",
               }}
-            />
+            >
+              {FORM_SHOT_TYPE_LABEL_JA[s.shot_type]}
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>{s.title}</p>
               <p style={{ fontSize: 11, color: "var(--ink-secondary)", margin: 0 }}>
@@ -85,7 +148,7 @@ export default function ServeListPage() {
                 color: s.status === "failed" ? "var(--alert)" : s.status === "done" ? "var(--court)" : "var(--sand)",
               }}
             >
-              {SERVE_STATUS_LABEL_JA[s.status]}
+              {FORM_STATUS_LABEL_JA[s.status]}
             </span>
           </div>
         ))}
@@ -118,20 +181,22 @@ export default function ServeListPage() {
             boxShadow: "0 4px 12px rgba(245,165,36,0.35)",
           }}
         >
-          ＋ サーブ動画を追加
+          ＋ {FORM_SHOT_TYPE_LABEL_JA[shotType]}動画を追加
         </button>
       </div>
 
       {showUpload && (
         <UploadSheet
           onClose={() => setShowUpload(false)}
-          createFn={api.createServeSession}
-          title="サーブ動画を追加"
-          description="斜め後方・近距離から撮った1本のサーブをアップロードしてください"
+          createFn={(uploadId, title) =>
+            api.createFormSession(uploadId, title, shotType, shotType === "backhand" ? backhandStyle : undefined)
+          }
+          title={`${FORM_SHOT_TYPE_LABEL_JA[shotType]}動画を追加`}
+          description="全身が映る近距離・単独のアングルでアップロードしてください"
           onCreated={(id) => {
             setShowUpload(false);
             mutate();
-            router.push(`/serve/${id}`);
+            router.push(`/form/${id}`);
           }}
         />
       )}

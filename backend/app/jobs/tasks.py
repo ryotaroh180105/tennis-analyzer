@@ -586,27 +586,31 @@ def run_weekly_digest_for_user(user_id: str) -> None:
         db.close()
 
 
-@celery_app.task(name="app.jobs.tasks.run_serve_analyze")
-def run_serve_analyze(serve_session_id: str) -> None:
-    """サーブ骨格解析（Phase 3。01 §Phase3 / 06-pro-reference-data.md）。
+@celery_app.task(name="app.jobs.tasks.run_form_analyze")
+def run_form_analyze(form_session_id: str) -> None:
+    """フォーム解析（Phase 3拡張。12-form-analysis.md）。
 
     Matchの4段パイプラインとは別の単発ジョブ（編集・ハイライト・スコアが不要なため）。
     骨格が検出できない場合でもjob自体は失敗させず、全指標がunknownの結果を返す
-    （CLAUDE.md不変原則1）。
+    （CLAUDE.md不変原則1）。抽出済みランドマーク系列はS3にgzip保存し、指標定義変更時に
+    骨格再抽出なしで再計算できるようにする（不変原則3）。
     """
-    from cvpipeline.stages.stage6_pose import analyze_serve
+    import gzip
+    import json
 
-    from app.models.serve import ServeAnalysis, ServeSession, ServeSessionStatus
+    from cvpipeline.pose.orchestrator import analyze_form
+
+    from app.models.form import FormAnalysis, FormSession, FormSessionStatus
 
     settings = get_settings()
     db = SessionLocal()
     session = None
     try:
-        session = db.get(ServeSession, uuid.UUID(serve_session_id))
+        session = db.get(FormSession, uuid.UUID(form_session_id))
         if session is None:
             return
 
-        session.status = ServeSessionStatus.analyzing
+        session.status = FormSessionStatus.analyzing
         db.commit()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -617,29 +621,45 @@ def run_serve_analyze(serve_session_id: str) -> None:
 
             meta = ffprobe(local_path)
             if meta["duration_s"] <= 0:
-                session.status = ServeSessionStatus.failed
+                session.status = FormSessionStatus.failed
                 session.failure_reason = {"code": "input_invalid", "message": "unreadable or zero-duration video"}
                 db.commit()
                 _notify_failure(db, session, "動画を読み込めませんでした")
                 return
 
             session.duration_s = meta["duration_s"]
-            result = analyze_serve(local_path, settings.pose_model_path, hz=settings.pose_sample_hz)
+            backhand_style = session.backhand_style.value if session.backhand_style else None
+            result = analyze_form(
+                local_path,
+                settings.pose_model_path,
+                session.shot_type.value,
+                backhand_style=backhand_style,
+                hz=settings.pose_sample_hz,
+            )
 
-        db.add(ServeAnalysis(serve_session_id=session.id, payload=result))
-        session.status = ServeSessionStatus.done
+        landmark_series = result.pop("landmark_series")
+        landmarks_key = f"form-sessions/{session.id}/landmarks.v1.json.gz"
+        storage.put_object_bytes(
+            landmarks_key,
+            gzip.compress(json.dumps(landmark_series).encode("utf-8")),
+            content_type="application/gzip",
+        )
+        session.landmarks_r2_key = landmarks_key
+
+        db.add(FormAnalysis(form_session_id=session.id, payload=result))
+        session.status = FormSessionStatus.done
         db.commit()
 
         from app.models.user import User
 
         user = db.get(User, session.user_id)
         if user:
-            notify_user(user, f"「{session.title}」のサーブ解析が完了しました。アプリでご確認ください。")
+            notify_user(user, f"「{session.title}」のフォーム解析が完了しました。アプリでご確認ください。")
 
     except Exception as exc:  # noqa: BLE001
-        logger.exception("serve analyze failed for %s", serve_session_id)
+        logger.exception("form analyze failed for %s", form_session_id)
         if session is not None:
-            session.status = ServeSessionStatus.failed
+            session.status = FormSessionStatus.failed
             session.failure_reason = {"code": "analyze_error", "message": str(exc)}
             db.commit()
     finally:

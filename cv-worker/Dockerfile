@@ -19,7 +19,7 @@ COPY cv-worker/cvpipeline /app/cv-worker/cvpipeline
 
 RUN pip install --no-cache-dir -e /app/backend -e /app/cv-worker
 
-# MediaPipe Pose Landmarker（Apache-2.0、事前学習済み）。stage6_pose.py（Phase3サーブ骨格解析）用。
+# MediaPipe Pose Landmarker（Apache-2.0、事前学習済み）。cvpipeline/pose/（Phase3フォーム解析）用。
 # URLはGoogleの公開モデルストレージ（https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker）。
 RUN mkdir -p /app/models && curl -sSL -o /app/models/pose_landmarker.task \
     https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task

@@ -26,7 +26,7 @@ export default function HomePage() {
       >
         <div style={{ fontSize: 17, fontWeight: 700 }}>試合</div>
         <button
-          onClick={() => router.push("/serve")}
+          onClick={() => router.push("/form")}
           style={{
             fontSize: 12,
             fontWeight: 700,
@@ -36,7 +36,7 @@ export default function HomePage() {
             padding: 0,
           }}
         >
-          サーブ解析 →
+          フォーム解析 →
         </button>
       </header>
 

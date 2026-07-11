@@ -29,8 +29,8 @@ def client():
 @pytest.fixture(autouse=True)
 def _clean_db():
     from app.core.db import SessionLocal
+    from app.models.form import FormSession
     from app.models.match import Match
-    from app.models.serve import ServeSession
     from app.models.share import ShareLink
     from app.models.upload import Upload
     from app.models.user import AuthProvider, User
@@ -38,7 +38,7 @@ def _clean_db():
     db = SessionLocal()
     db.query(ShareLink).delete()
     db.query(Match).delete()
-    db.query(ServeSession).delete()
+    db.query(FormSession).delete()
     db.query(Upload).delete()
     db.query(AuthProvider).delete()
     db.query(User).delete()

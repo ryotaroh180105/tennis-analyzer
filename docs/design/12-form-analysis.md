@@ -30,7 +30,8 @@ Phase 3のフォーム解析を**サーブ専用から主要ショット全種�
 | forehand / backhand | ready → backswing → forward_swing → contact → follow_through | backswing_end＝利き手首が骨盤基準で最も後方に達した時点、contact＝利き手首スピードのピーク、follow_end＝スピードが閾値を割った時点 |
 | volley | ready → punch → contact → recovery | contact＝利き手首が体の前方（骨盤前面基準）で最も遠くに達した時点。**ボレーはスイングしない**のが要点なので、コンタクト前後の肘角度変化量そのものを主要指標にする |
 
-※ smashではフェーズ名を `point`（ポインティング）と読み替える。YAMLの `phase_labels` で表示名を差し替え。
+※ smashではフェーズ名を `point`（ポインティング）と読み替える。表示名はフロント側の
+   ラベル辞書（statusラベル等と同じ既存パターン）で差し替える。
 
 ### ハンドネス・スタイルの扱い
 

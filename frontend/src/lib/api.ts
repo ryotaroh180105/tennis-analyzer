@@ -126,15 +126,20 @@ export const api = {
   // 即時フィードバック（07-advice-delivery.md §①。解析完了後に非同期生成される）
   getFeedback: (matchId: string) => apiFetch<FeedbackResponse>(`/api/matches/${matchId}/feedback`),
 
-  // サーブ骨格解析（Phase 3。01 §Phase3 / 06-pro-reference-data.md）
-  createServeSession: (uploadId: string, title: string) =>
-    apiFetch<ServeSession>("/api/serve-sessions", {
+  // フォーム解析（Phase 3拡張。12-form-analysis.md）
+  createFormSession: (uploadId: string, title: string, shotType: FormShotType, backhandStyle?: BackhandStyle) =>
+    apiFetch<FormSession>("/api/form-sessions", {
       method: "POST",
-      body: JSON.stringify({ upload_id: uploadId, title }),
+      body: JSON.stringify({
+        upload_id: uploadId,
+        title,
+        shot_type: shotType,
+        backhand_style: backhandStyle ?? null,
+      }),
     }),
-  listServeSessions: () => apiFetch<ServeSession[]>("/api/serve-sessions"),
-  getServeSession: (id: string) => apiFetch<ServeSession>(`/api/serve-sessions/${id}`),
-  getServeAnalysis: (id: string) => apiFetch<ServeAnalysisResult>(`/api/serve-sessions/${id}/analysis`),
+  listFormSessions: () => apiFetch<FormSession[]>("/api/form-sessions"),
+  getFormSession: (id: string) => apiFetch<FormSession>(`/api/form-sessions/${id}`),
+  getFormAnalysis: (id: string) => apiFetch<FormAnalysisResult>(`/api/form-sessions/${id}/analysis`),
 };
 
 export interface ScoreResponse {
@@ -177,36 +182,40 @@ export interface FeedbackResponse {
   created_at: string;
 }
 
-export type ServeSessionStatus = "queued" | "analyzing" | "done" | "failed";
+export type FormSessionStatus = "queued" | "analyzing" | "done" | "failed";
+export type FormShotType = "serve" | "forehand" | "backhand" | "smash" | "volley";
+export type BackhandStyle = "one_handed" | "two_handed" | "auto";
 
-export interface ServeSession {
+export interface FormSession {
   id: string;
   title: string;
-  status: ServeSessionStatus;
+  shot_type: FormShotType;
+  backhand_style: BackhandStyle | null;
+  status: FormSessionStatus;
   failure_reason: { code: string; message: string } | null;
   duration_s: number | null;
   created_at: string;
 }
 
-export interface ServePhaseWindow {
-  start_s: number;
-  end_s: number;
-}
-
-export interface ServeMetric {
+export interface FormMetric {
   id: string;
   phase: string;
   unit: string;
   measured: number | null;
+  iqr: number | null;
   elite_range: [number, number];
   status: "in_range" | "borderline" | "out_of_range" | "unknown";
-  confidence: number;
+  high_variance: boolean;
+  valid_swings: number;
   advice_key: string;
 }
 
-export interface ServeAnalysisResult {
-  phases: Record<string, ServePhaseWindow | string> & { dominant_side?: string };
-  metrics: ServeMetric[];
+export interface FormAnalysisResult {
+  shot_type: FormShotType;
+  dominant_side: string;
+  swing_count: number;
+  insufficient_data: boolean;
+  metrics: FormMetric[];
   feedback_metrics: string[];
   confidence: { pose_detection_ratio: number };
   citation_status: string;
@@ -223,32 +232,64 @@ export const STATUS_LABEL_JA: Record<MatchStatus, string> = {
   failed: "解析できませんでした",
 };
 
-export const SERVE_STATUS_LABEL_JA: Record<ServeSessionStatus, string> = {
+export const FORM_STATUS_LABEL_JA: Record<FormSessionStatus, string> = {
   queued: "解析を待っています",
   analyzing: "骨格を解析しています",
   done: "完了",
   failed: "解析できませんでした",
 };
 
-export const SERVE_PHASE_LABEL_JA: Record<string, string> = {
+export const FORM_SHOT_TYPE_LABEL_JA: Record<FormShotType, string> = {
+  serve: "サーブ",
+  forehand: "フォアハンド",
+  backhand: "バックハンド",
+  smash: "スマッシュ",
+  volley: "ボレー",
+};
+
+export const BACKHAND_STYLE_LABEL_JA: Record<BackhandStyle, string> = {
+  one_handed: "片手",
+  two_handed: "両手",
+  auto: "自動判定",
+};
+
+export const FORM_PHASE_LABEL_JA: Record<string, string> = {
   preparation: "構え",
   toss: "トス",
+  point: "ポインティング",
   trophy: "トロフィーポーズ",
   acceleration: "加速",
   impact: "インパクト",
   follow_through: "フォロースルー",
+  ready: "構え",
+  backswing_end: "バックスイング",
+  contact: "コンタクト",
+  punch_start: "パンチ開始",
 };
 
-export const SERVE_METRIC_LABEL_JA: Record<string, string> = {
+export const FORM_METRIC_LABEL_JA: Record<string, string> = {
+  // serve / smash
   knee_flexion_at_trophy: "トロフィーポーズの膝の曲がり",
   elbow_height_at_trophy: "トロフィーポーズの肘の高さ",
   shoulder_hip_separation_at_trophy: "肩と腰の捻転差",
   elbow_extension_at_impact: "インパクト時の肘の伸び",
   contact_height_relative: "打点の高さ",
   toss_apex_to_impact_ms: "トスからインパクトまでの時間",
+  point_arm_apex_height: "ポインティング腕の高さ",
+  // forehand / backhand
+  shoulder_hip_separation_at_backswing: "バックスイングの捻転差",
+  shoulder_hip_separation_at_backswing_2h: "バックスイングの捻転差",
+  contact_forward_of_hip: "打点の前後位置",
+  backswing_to_contact_ms: "バックスイングからコンタクトまでの時間",
+  elbow_angle_at_contact: "コンタクト時の肘の角度",
+  elbow_extension_at_contact: "コンタクト時の肘の伸び",
+  // volley
+  elbow_angle_delta_through_contact: "コンタクト前後の肘角度変化",
+  contact_forward_of_body: "打点の前後位置",
+  knee_flexion_at_contact: "コンタクト時の膝の曲がり",
 };
 
-export const SERVE_METRIC_STATUS_LABEL_JA: Record<ServeMetric["status"], string> = {
+export const FORM_METRIC_STATUS_LABEL_JA: Record<FormMetric["status"], string> = {
   in_range: "参考レンジ内",
   borderline: "レンジにやや近い",
   out_of_range: "参考レンジ外",

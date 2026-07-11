@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import advice, auth, matches, score, serve, share, stats, uploads
+from app.api import advice, auth, form, matches, score, share, stats, uploads
 from app.services import storage
 
 logging.basicConfig(level=logging.INFO)
@@ -26,7 +26,7 @@ app.include_router(matches.router)
 app.include_router(score.router)
 app.include_router(stats.router)
 app.include_router(advice.router)
-app.include_router(serve.router)
+app.include_router(form.router)
 app.include_router(share.router)
 
 

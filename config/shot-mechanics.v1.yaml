@@ -244,10 +244,10 @@ shots:
   # -------------------------------------------------------------
   smash:
     detector: serve_like
+    # "point"（非利き腕でボールを指す動作。serve_likeのtoss_apexイベントの読み替え）の
+    # 表示名はfrontend側のFORM_PHASE_LABEL_JAで定義する（statusラベル等と同じくUI文言は
+    # フロント側の辞書に置く既存パターンに合わせる）
     phases: [preparation, point, trophy, acceleration, impact, follow_through]
-    phase_labels:
-      ja:
-        point: ポインティング   # 非利き腕でボールを指す動作（トスの読み替え）
     metrics:
       - id: point_arm_apex_height
         at: toss_apex           # detector上のイベント名はserve_like共通（非利き手首の頂点）
