@@ -108,9 +108,19 @@ def line_separation_signed(joints: dict, dominant_side: str, args: dict) -> floa
     片手/両手バックハンドの分離角の向き（文献: 片手=positive/両手=negative、
     コンタクト時）のような定性判定（expected_sign）専用。数値レンジ比較には
     line_separation（符号規約が実装依存で不安定なため）を使うこと。
+
+    符号は利き手基準に正規化する（不変原則1）。生の計算（右肩-左肩の順で定義した
+    yaw差）は解剖学的な左右で固定されており、左利き選手が右利き選手と鏡像の
+    フォーム（同じ技術）を行っても、符号が反転してしまう（幾何学的な鏡像変換で
+    yaw差の符号がちょうど反転することを解析的に確認済み。テスト参照）。
+    このため左利きは符号を反転し、YAMLのexpected_signを利き手非依存の固定値
+    のまま書けるようにする。
     """
     line_a, line_b = args["lines"]
-    return round(_line_yaw_deg(joints, line_a) - _line_yaw_deg(joints, line_b), 2)
+    raw = _line_yaw_deg(joints, line_a) - _line_yaw_deg(joints, line_b)
+    if dominant_side == "left":
+        raw = -raw
+    return round(raw, 2)
 
 
 def event_interval(frames_by_event: dict, args: dict) -> float | None:

@@ -110,6 +110,40 @@ def test_line_separation_signed_sign_flips_with_rotation_direction():
     )
 
 
+def _mirror_joints(joints: dict) -> dict:
+    """左右反転した鏡像ポーズを作る（x軸を反転しつつleft/rightラベルを入れ替える）。
+
+    「左利き選手が右利き選手と鏡像の同一技術を行った場合」の合成データに使う
+    （13 A-2: line_separation_signedの利き手正規化の検証）。
+    """
+    mirrored = {}
+    for key, point in joints.items():
+        if key.startswith("left_"):
+            mirrored_key = "right_" + key[len("left_") :]
+        elif key.startswith("right_"):
+            mirrored_key = "left_" + key[len("right_") :]
+        else:
+            mirrored_key = key
+        mirrored[mirrored_key] = {**point, "x": -point["x"]}
+    return mirrored
+
+
+def test_line_separation_signed_normalizes_sign_for_left_handed_mirror_pose():
+    # 右利き選手の基準ポーズ（片手バックの正しい形＝分離角positive、と仮定）
+    joints_right = _neutral_joints()
+    joints_right["right_shoulder"]["z"] = 0.3
+    value_right = line_separation_signed(joints_right, "right", {"lines": ["shoulder_line", "hip_line"]})
+
+    # 左利き選手が同じ技術を鏡像で行ったポーズ（幾何学的には生の計算符号が反転する。
+    # PRコメント参照: atan2の鏡像変換で厳密に符号反転することを解析的に確認済み）
+    joints_left_mirror = _mirror_joints(joints_right)
+    value_left = line_separation_signed(joints_left_mirror, "left", {"lines": ["shoulder_line", "hip_line"]})
+
+    # 正規化後は同じ技術（鏡像）に対して同じ符号・同じ大きさになる
+    assert value_left == pytest.approx(value_right)
+    assert value_left > 0
+
+
 def test_event_interval_computes_ms_between_events():
     frames_by_event = {"a": {"t": 0.3}, "b": {"t": 0.7}}
     assert event_interval(frames_by_event, {"from_event": "a", "to_event": "b"}) == 400.0
