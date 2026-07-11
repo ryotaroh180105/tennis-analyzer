@@ -84,12 +84,29 @@ backhand/smash/volleyの文献調査は実質的に未完了のまま。
 
 ## 次のアクション（引き継ぎ用）
 
-1. 上記出典のPDF本文（機関アクセス・購入・著者への問い合わせ等）を入手し、
-   角度の符号規約・測定フレーム定義を確認する。このセッションの環境からは
-   到達不能（上記「本文PDFアクセスについて」参照）。
-2. 確認できた指標から `elite_range`/`tolerance`/`source` を再調整し、
+**本文アクセスの推奨経路（2026-07-11に判明）**：`curl`直叩き・WebFetchツールとも
+このセッションのネットワークポリシーで全ドメインが403になる（Wikipediaでも再現）。
+一方、`SearchMcpRegistry`で調べたところ以下のMCPコネクタが見つかった：
+
+- **PubMed**（`authless: true`、接続設定不要）— `search_articles` /
+  `get_article_metadata` / `find_related_articles` / `lookup_article_by_citation` /
+  **`get_full_text_article`** / `get_copyright_status`。MCP経由（Anthropic側インフラ）
+  でのアクセスのため、このセッションの`curl`/`WebFetch`ブロックを回避できる可能性が高い。
+  今回見つかった論文（Frontiers・PMC掲載）はPubMed索引対象なので最有力
+- **Elicit**（OAuth連携要）— `search_papers` / `search_trials` / `create_report`。
+  複数論文を横断した要約・レポート化に向く
+- alphaXiv・bioRxivは物理/CS/生物学プレプリント中心でテニスのバイオメカニクス
+  論文はほぼ対象外（今回は非該当）
+- 書籍（コーチング教本等）に対応するコネクタは見当たらず、別問題として残る
+
+**再開時の手順**：
+1. `claude.ai`の接続設定でPubMedコネクタを有効化してもらう（認証不要）
+2. `get_full_text_article`で下表の出典の本文を取得し、角度の符号規約・測定フレーム
+   定義を確認する
+3. 確認できた指標から `elite_range`/`tolerance`/`source` を再調整し、
    `citation_status` を該当ショットだけ `verified` 等に細分化する
    （現状は全ショット共通の1フラグなので、指標単位・ショット単位に分ける設計変更が必要）。
-3. コーチ・理学療法士等のドメイン専門家によるサニティチェックを推奨（06 §リスクまとめの
+4. コーチ・理学療法士等のドメイン専門家によるサニティチェックを推奨（06 §リスクまとめの
    「誤った指導リスク」対応として、文献値だけでなく実務者の確認を挟む）。
-4. backhand/smash/volleyの文献調査は未着手。
+5. backhand/smash/volleyの文献調査は未着手。PMC3588639（片手/両手バックハンド）が
+   最有力候補
