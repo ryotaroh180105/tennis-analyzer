@@ -127,6 +127,31 @@ def test_analyze_landmarks_loads_real_shot_mechanics_config_for_forehand():
     assert result["citation_status"] == "placeholder_pending_literature_review"
 
 
+def test_analyze_landmarks_real_config_for_backhand_one_handed():
+    config = load_shot_mechanics()
+    series = _forehand_series(n_swings=3, gap_s=4.0)
+    result = analyze_landmarks(series, "backhand", backhand_style="one_handed", config=config)
+    assert result["shot_type"] == "backhand"
+    assert result["swing_count"] == 3
+    assert len(result["metrics"]) == 6  # backhandセクションのone_handed対象指標数
+
+    direction = next(m for m in result["metrics"] if m["id"] == "shoulder_hip_separation_direction_at_contact")
+    assert direction["elite_range"] is None
+    assert direction["expected_sign"] == "positive"
+    assert direction["status"] in {"in_range", "out_of_range", "unknown"}
+
+
+def test_analyze_landmarks_real_config_for_backhand_two_handed():
+    config = load_shot_mechanics()
+    series = _forehand_series(n_swings=3, gap_s=4.0)
+    result = analyze_landmarks(series, "backhand", backhand_style="two_handed", config=config)
+    assert len(result["metrics"]) == 5  # backhandセクションのtwo_handed対象指標数（elbow_extension_at_contactは片手専用）
+
+    direction = next(m for m in result["metrics"] if m["id"] == "shoulder_hip_separation_direction_at_contact_2h")
+    assert direction["elite_range"] is None
+    assert direction["expected_sign"] == "negative"
+
+
 def _serve_like_series(n_swings: int, dt: float = 0.05, gap_s: float = 4.0):
     """n_swings回のサーブ/スマッシュ様スイングを持つ合成系列（右利き想定）。"""
     series = []

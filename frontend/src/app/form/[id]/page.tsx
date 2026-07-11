@@ -27,6 +27,11 @@ function formatValue(m: FormMetric): string {
 
 function formatRange(m: FormMetric): string {
   const unit = m.unit === "deg" ? "°" : m.unit === "ms" ? "ms" : "";
+  if (m.elite_range == null) {
+    if (m.expected_sign === "positive") return "参考: 正の値が理想（定性評価）";
+    if (m.expected_sign === "negative") return "参考: 負の値が理想（定性評価）";
+    return "参考: データなし";
+  }
   return `参考: ${m.elite_range[0]}〜${m.elite_range[1]}${unit}`;
 }
 

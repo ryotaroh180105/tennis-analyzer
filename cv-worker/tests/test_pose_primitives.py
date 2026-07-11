@@ -8,6 +8,7 @@ from cvpipeline.pose.primitives import (
     forward_of_body,
     joint_angle,
     line_separation,
+    line_separation_signed,
     relative_height,
     resolve_role,
 )
@@ -90,6 +91,23 @@ def test_line_separation_detects_rotation_difference():
     joints["right_shoulder"]["z"] = 0.3  # 肩だけ捻る
     value = line_separation(joints, "right", {"lines": ["shoulder_line", "hip_line"]})
     assert value > 10
+
+
+def test_line_separation_signed_sign_flips_with_rotation_direction():
+    joints_a = _neutral_joints()
+    joints_a["right_shoulder"]["z"] = 0.3  # 肩がhipより前方(z-)寄りに回旋 → 片手打ち想定
+    positive = line_separation_signed(joints_a, "right", {"lines": ["shoulder_line", "hip_line"]})
+
+    joints_b = _neutral_joints()
+    joints_b["left_shoulder"]["z"] = 0.3  # 逆向きの回旋 → 両手打ち想定
+    negative = line_separation_signed(joints_b, "right", {"lines": ["shoulder_line", "hip_line"]})
+
+    assert positive > 0
+    assert negative < 0
+    # abs()を取らない点だけがline_separationとの違い
+    assert line_separation_signed(joints_a, "right", {"lines": ["shoulder_line", "hip_line"]}) == pytest.approx(
+        line_separation(joints_a, "right", {"lines": ["shoulder_line", "hip_line"]})
+    )
 
 
 def test_event_interval_computes_ms_between_events():

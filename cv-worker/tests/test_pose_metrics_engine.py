@@ -1,6 +1,11 @@
 """指標評価・集約の純粋関数テスト（12-form-analysis.md §指標エンジン／集約は中央値+IQR）。"""
 
-from cvpipeline.pose.metrics_engine import aggregate_metric, evaluate_metric, evaluate_status
+from cvpipeline.pose.metrics_engine import (
+    aggregate_metric,
+    evaluate_metric,
+    evaluate_qualitative_status,
+    evaluate_status,
+)
 
 
 def _neutral_joints():
@@ -77,3 +82,50 @@ def test_aggregate_metric_no_valid_swings_is_unknown():
     assert result["status"] == "unknown"
     assert result["measured"] is None
     assert result["valid_swings"] == 0
+
+
+def test_evaluate_qualitative_status_matches_expected_sign():
+    assert evaluate_qualitative_status(12.0, "positive") == "in_range"
+    assert evaluate_qualitative_status(-12.0, "positive") == "out_of_range"
+    assert evaluate_qualitative_status(-12.0, "negative") == "in_range"
+    assert evaluate_qualitative_status(0.0, "positive") == "out_of_range"
+
+
+def _qualitative_metric(**overrides):
+    metric = _metric(
+        id="separation_direction",
+        primitive="line_separation_signed",
+        expected_sign="positive",
+        advice_key="unit_turn",
+    )
+    del metric["elite_range"]
+    del metric["tolerance"]
+    metric.update(overrides)
+    return metric
+
+
+def test_aggregate_metric_qualitative_mode_has_no_elite_range():
+    metric = _qualitative_metric()
+    result = aggregate_metric(metric, [10.0, 12.0, 8.0])
+    assert result["elite_range"] is None
+    assert result["expected_sign"] == "positive"
+    assert result["status"] == "in_range"
+    assert result["measured"] == 10.0
+
+
+def test_aggregate_metric_qualitative_mode_out_of_range_when_sign_mismatches():
+    metric = _qualitative_metric(expected_sign="negative")
+    result = aggregate_metric(metric, [10.0, 12.0, 8.0])
+    assert result["status"] == "out_of_range"
+
+
+def test_aggregate_metric_qualitative_mode_high_variance_when_signs_disagree():
+    metric = _qualitative_metric()
+    result = aggregate_metric(metric, [10.0, -5.0, 8.0])
+    assert result["high_variance"] is True
+
+
+def test_aggregate_metric_qualitative_mode_no_valid_swings_is_unknown():
+    result = aggregate_metric(_qualitative_metric(), [])
+    assert result["status"] == "unknown"
+    assert result["elite_range"] is None

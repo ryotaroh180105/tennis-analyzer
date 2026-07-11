@@ -8,12 +8,18 @@
 #   shots.<shot_type>.metrics[]  — 指標定義。計算はprimitive（コード側の計算プリミティブ）×args。
 #     at:          detectorが提供するキーイベント名。存在しない参照はロード時に拒否
 #     primitive:   joint_angle | relative_height | forward_of_body | line_separation
-#                  | event_interval | angle_delta
+#                  | line_separation_signed | event_interval | angle_delta
 #     args:        関節はロール名（dominant_wrist / nondominant_knee 等）で書く。
 #                  ハンドネス解決はエンジン側
 #     only_style:  （任意）backhandのみ。one_handed | two_handed で出し分け
 #     consistency_cv_max: （任意）スイング間の IQR/中央値 がこれを超えたら
 #                  「ばらつき大」フィードバック候補にする
+#     elite_range + tolerance:  数値レンジでの定量評価（デフォルト）
+#     expected_sign: （任意、elite_range/toleranceと排他）"positive" | "negative"。
+#                  文献で方向性（符号）のみ裏付けられ、具体的な数値レンジが
+#                  未確認の場合の定性評価モード（不変原則1: 精度不明な断定より、
+#                  裏付けのある範囲での評価を優先する）。line_separation_signed等
+#                  符号が意味を持つprimitiveと組み合わせて使う
 #
 # citation_status: 大半の elite_range は文献レビュー未完了の暫定値（placeholder）。
 # コーチング文脈で提示する前に一次文献（ITF Coaching & Sport Science Review等）で検証し
@@ -24,10 +30,12 @@
 # elbow_extension_at_impact）はPubMed MCP（get_full_text_article）で本文を確認済み。
 # 角度の符号規約（ISBコンベンション、伸展位0°基準）をMethods章の記述で明示的に確認し、
 # 本アプリのjoint_angleプリミティブ（伸展位180°基準）への180-flexion変換の妥当性が
-# 裏付けられた。forehandの1指標はWebSearch経由（本文未確認）。それ以外は依然placeholder。
-# citation_statusは全体としてはまだ「検証中」のまま（指標単位・ショット単位への細分化は
-# 将来のスキーマ変更として12aに記載、今回は見送り）。詳細・出典はdocs/design/
-# 12a-mechanics-literature-notes.md参照。
+# 裏付けられた。forehandの1指標はWebSearch経由（本文未確認）。backhandの1指標
+# （shoulder_hip_separation_direction_at_contact系）は本文確認済みだが数値レンジは
+# 図表のみ記載でテキスト抽出不可のため expected_sign による定性評価とした。
+# それ以外は依然placeholder。citation_statusは全体としてはまだ「検証中」のまま
+# （指標単位・ショット単位への細分化は将来のスキーマ変更として12aに記載、今回は
+# 見送り）。詳細・出典はdocs/design/12a-mechanics-literature-notes.md参照。
 version: 1
 citation_status: placeholder_pending_literature_review
 
@@ -267,6 +275,40 @@ shots:
         tolerance: 80
         advice_key: swing_tempo
         source: placeholder
+
+      # 定性指標（数値レンジではなく符号のみで判定）。片手/両手で肩-腰の回旋差の
+      # 向きが逆転するという文献知見はあるが、具体的な度数（図表のみ記載）は
+      # テキスト抽出できず未取得のため、elite_rangeではなくexpected_signで評価する
+      # （不変原則1: 精度不明な数値の断定より、裏付けのある方向性のみの評価を優先）
+      - id: shoulder_hip_separation_direction_at_contact
+        only_style: one_handed
+        at: contact
+        primitive: line_separation_signed
+        args: {lines: [shoulder_line, hip_line]}
+        unit: deg
+        expected_sign: positive
+        advice_key: unit_turn
+        source: >-
+          Rogowski et al., "The Kinematics of Trunk and Upper Extremities in
+          One-Handed and Two-Handed Backhand Stroke" (PMC3588639) — 本文で
+          片手打ちは正・両手打ちは負の分離角として報告されることを確認
+          （コンタクト時点）。具体的な度数は図表のみに記載されテキスト抽出
+          不可のため、符号（向き）のみを定性的に評価する。
+
+      - id: shoulder_hip_separation_direction_at_contact_2h
+        only_style: two_handed
+        at: contact
+        primitive: line_separation_signed
+        args: {lines: [shoulder_line, hip_line]}
+        unit: deg
+        expected_sign: negative
+        advice_key: unit_turn
+        source: >-
+          Rogowski et al., "The Kinematics of Trunk and Upper Extremities in
+          One-Handed and Two-Handed Backhand Stroke" (PMC3588639) — 本文で
+          片手打ちは正・両手打ちは負の分離角として報告されることを確認
+          （コンタクト時点）。具体的な度数は図表のみに記載されテキスト抽出
+          不可のため、符号（向き）のみを定性的に評価する。
 
   # -------------------------------------------------------------
   # smash（3c） — serve検出器の流用。トス系タイミング指標は除外

@@ -72,8 +72,24 @@ def evaluate_status(value: float, elite_range: list[float], tolerance: float) ->
     return "out_of_range"
 
 
+def evaluate_qualitative_status(value: float, expected_sign: str) -> str:
+    """数値レンジではなく符号（向き）のみで判定する定性指標用（不変原則1: 精緻な数値の裏付けが
+    ない場合でも、方向性のみ文献で裏付けられていれば「unknown」より評価を優先する）。
+    """
+    if value == 0:
+        return "out_of_range"
+    actual_sign = "positive" if value > 0 else "negative"
+    return "in_range" if actual_sign == expected_sign else "out_of_range"
+
+
 def aggregate_metric(metric: dict, per_swing_values: list[float]) -> dict:
-    """1指標について有効スイング全体の中央値・IQR・ばらつき判定・レンジ比較をまとめる。"""
+    """1指標について有効スイング全体の中央値・IQR・ばらつき判定・レンジ比較をまとめる。
+
+    elite_range（数値レンジ）とexpected_sign（定性・符号のみ）は排他。expected_signの
+    場合、elite_rangeはNoneのまま返す（フロント側は方向性テキストで表示する）。
+    """
+    is_qualitative = "expected_sign" in metric
+
     if not per_swing_values:
         return {
             "id": metric["id"],
@@ -81,7 +97,8 @@ def aggregate_metric(metric: dict, per_swing_values: list[float]) -> dict:
             "unit": metric["unit"],
             "measured": None,
             "iqr": None,
-            "elite_range": metric["elite_range"],
+            "elite_range": None if is_qualitative else metric["elite_range"],
+            "expected_sign": metric.get("expected_sign"),
             "status": "unknown",
             "high_variance": False,
             "valid_swings": 0,
@@ -90,10 +107,15 @@ def aggregate_metric(metric: dict, per_swing_values: list[float]) -> dict:
 
     median = _median(per_swing_values)
     iqr = _iqr(per_swing_values)
-    status = evaluate_status(median, metric["elite_range"], metric["tolerance"])
 
-    cv_max = metric.get("consistency_cv_max")
-    high_variance = bool(cv_max is not None and median != 0 and (iqr / abs(median)) > cv_max)
+    if is_qualitative:
+        status = evaluate_qualitative_status(median, metric["expected_sign"])
+        signs = {"positive" if v > 0 else "negative" if v < 0 else "zero" for v in per_swing_values}
+        high_variance = len(signs) > 1
+    else:
+        status = evaluate_status(median, metric["elite_range"], metric["tolerance"])
+        cv_max = metric.get("consistency_cv_max")
+        high_variance = bool(cv_max is not None and median != 0 and (iqr / abs(median)) > cv_max)
 
     return {
         "id": metric["id"],
@@ -101,7 +123,8 @@ def aggregate_metric(metric: dict, per_swing_values: list[float]) -> dict:
         "unit": metric["unit"],
         "measured": round(median, 2),
         "iqr": round(iqr, 2),
-        "elite_range": metric["elite_range"],
+        "elite_range": None if is_qualitative else metric["elite_range"],
+        "expected_sign": metric.get("expected_sign"),
         "status": status,
         "high_variance": high_variance,
         "valid_swings": len(per_swing_values),

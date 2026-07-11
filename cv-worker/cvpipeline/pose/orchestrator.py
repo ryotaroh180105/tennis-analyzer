@@ -54,11 +54,17 @@ def analyze_landmarks(
 
     insufficient_data = len(swings) < config["swing_detection"]["min_valid_swings"]
 
+    def _severity(m: dict) -> float:
+        # 定性指標（elite_rangeなし）は数値距離を持たないため、優先度は最下位固定にする
+        if m["elite_range"] is None:
+            return 0.0
+        return max(m["elite_range"][0] - m["measured"], m["measured"] - m["elite_range"][1], 0.0)
+
     feedback_metrics = []
     if not insufficient_data:
         ranked = sorted(
             (m for m in metrics if m["status"] == "out_of_range"),
-            key=lambda m: max(m["elite_range"][0] - m["measured"], m["measured"] - m["elite_range"][1], 0.0),
+            key=_severity,
             reverse=True,
         )
         feedback_metrics = [m["id"] for m in ranked[:max_feedback]]

@@ -78,14 +78,26 @@ def forward_of_body(joints: dict, dominant_side: str, args: dict) -> float | Non
     return round((hip_mid_z - p["z"]) / _torso_scale(joints, dominant_side), 3)
 
 
-def line_separation(joints: dict, dominant_side: str, args: dict) -> float:
-    def yaw_deg(line_name: str) -> float:
-        prefix = "shoulder" if line_name == "shoulder_line" else "hip"
-        left, right = joints[f"left_{prefix}"], joints[f"right_{prefix}"]
-        return math.degrees(math.atan2(right["z"] - left["z"], right["x"] - left["x"]))
+def _line_yaw_deg(joints: dict, line_name: str) -> float:
+    prefix = "shoulder" if line_name == "shoulder_line" else "hip"
+    left, right = joints[f"left_{prefix}"], joints[f"right_{prefix}"]
+    return math.degrees(math.atan2(right["z"] - left["z"], right["x"] - left["x"]))
 
+
+def line_separation(joints: dict, dominant_side: str, args: dict) -> float:
     line_a, line_b = args["lines"]
-    return round(abs(yaw_deg(line_a) - yaw_deg(line_b)), 2)
+    return round(abs(_line_yaw_deg(joints, line_a) - _line_yaw_deg(joints, line_b)), 2)
+
+
+def line_separation_signed(joints: dict, dominant_side: str, args: dict) -> float:
+    """符号付きの回旋差（line_separationのabs()を取らない版）。
+
+    片手/両手バックハンドの分離角の向き（文献: 片手=positive/両手=negative、
+    コンタクト時）のような定性判定（expected_sign）専用。数値レンジ比較には
+    line_separation（符号規約が実装依存で不安定なため）を使うこと。
+    """
+    line_a, line_b = args["lines"]
+    return round(_line_yaw_deg(joints, line_a) - _line_yaw_deg(joints, line_b), 2)
 
 
 def event_interval(frames_by_event: dict, args: dict) -> float | None:
@@ -106,5 +118,11 @@ def angle_delta(frames_by_event: dict, dominant_side: str, args: dict) -> float 
     return round(abs(a1 - a0), 2)
 
 
-SINGLE_FRAME_PRIMITIVES = {"joint_angle", "relative_height", "forward_of_body", "line_separation"}
+SINGLE_FRAME_PRIMITIVES = {
+    "joint_angle",
+    "relative_height",
+    "forward_of_body",
+    "line_separation",
+    "line_separation_signed",
+}
 EVENT_PAIR_PRIMITIVES = {"event_interval", "angle_delta"}

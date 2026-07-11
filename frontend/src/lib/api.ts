@@ -203,7 +203,8 @@ export interface FormMetric {
   unit: string;
   measured: number | null;
   iqr: number | null;
-  elite_range: [number, number];
+  elite_range: [number, number] | null;
+  expected_sign: "positive" | "negative" | null;
   status: "in_range" | "borderline" | "out_of_range" | "unknown";
   high_variance: boolean;
   valid_swings: number;
@@ -283,6 +284,8 @@ export const FORM_METRIC_LABEL_JA: Record<string, string> = {
   backswing_to_contact_ms: "バックスイングからコンタクトまでの時間",
   elbow_angle_at_contact: "コンタクト時の肘の角度",
   elbow_extension_at_contact: "コンタクト時の肘の伸び",
+  shoulder_hip_separation_direction_at_contact: "コンタクト時の捻転の向き",
+  shoulder_hip_separation_direction_at_contact_2h: "コンタクト時の捻転の向き",
   // volley
   elbow_angle_delta_through_contact: "コンタクト前後の肘角度変化",
   contact_forward_of_body: "打点の前後位置",

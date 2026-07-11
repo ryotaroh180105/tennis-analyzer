@@ -155,7 +155,8 @@ class FormMetric(BaseModel):
     unit: str
     measured: float | None
     iqr: float | None
-    elite_range: list[float]
+    elite_range: list[float] | None
+    expected_sign: str | None = None
     status: str
     high_variance: bool
     valid_swings: int
