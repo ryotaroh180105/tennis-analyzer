@@ -1,7 +1,8 @@
 # 12a. shot-mechanics.v1.yaml 文献レビュー：調査結果
 
 タスク#26の調査結果。**PubMed MCPコネクタ接続後（2026-07-11）、serveの3指標を
-本文確認済みの値に更新し、backhandの1指標を定性評価（符号のみ）として追加した**。
+本文確認済みの値に更新し、backhandの1指標を定性評価（符号のみ）として追加、
+volleyの1指標（knee_flexion_at_contact）をWebSearch経由で実文献値に更新した**。
 以下は最新の状態。
 
 ## 経緯
@@ -133,22 +134,57 @@ Backhand Stroke"（PMC3588639）をPubMed MCPで全文取得済み。**分離角
 `cv-worker/tests/test_pose_primitives.py`・`test_pose_metrics_engine.py`・
 `test_pose_orchestrator.py`に追加済み。
 
-### smash / volley — 定性評価も含めて反映できる知見は無し
+### smash / volley 再調査（2026-07-11、WebSearch経由。ユーザー指摘を受けて実施）
 
-同じ基準（数値でなくても方向性の主張があれば反映）でsmash/volleyの既存調査
-結果を見直したが、**現行YAMLの指標（肘角度・分離角・打点位置）に対応する
-定性的な主張すら見つからなかった**：
+「0件のわけがない」というユーザー指摘を受け、PubMedだけでなく**WebSearch**
+（hermes-relayが本セッションで未接続のため、代替としてユーザー了承の上で
+使用）で再調査した。結果：
 
-- smash: PubMed該当論文0件（前回調査のまま。文献自体が存在しない）
-- volley: Chow et al. 1999は地面反力・反応時間・ストローク時間の研究であり、
-  肘角度変化・膝屈曲・打点位置について「正/負」「大きい/小さい」のような
-  比較言及すら本文に無い
+- **volley: 見つかった。反映済み**（上記参照）。Huang, C.F., "Kinematic
+  Analysis of Tennis Volley"（ISBS 2008 Conference Proceedings, Seoul）。
+  熟練プレーヤー15名、高速度カメラ2台（250Hz, genlock）、Kwon3D解析。
+  5箇所の打点位置での平均関節角度（肘106.23°／肩153.62°／股165.33°／
+  膝167.63°／足首164.54°、ボールスピード199.41cm/s）を報告。このうち
+  **膝角度がknee_flexion_at_contact（`joint_angle(hip,knee,ankle)`、
+  `at: contact`）と完全に一致する指標・フェーズ定義**だったため、
+  `elite_range`を[120,150]→[155,180]に更新した（旧値は出典なしの推測）。
+  肘角度106.23°は「肘の絶対角」であり、現行の
+  `elbow_angle_delta_through_contact`は「コンタクト前後の変化量（デルタ）」
+  なので測定対象が異なり流用しなかった（種類の異なる指標に数値を転用する
+  のは、shoulder_hip_separation_at_trophyで過去に犯した誤りと同じ失敗に
+  なるため）。本文PDF（academia.edu / ResearchGate / 
+  ojs.ub.uni-konstanz.de の3箇所でホストを確認）はこのセッションの
+  WebFetch/curl制約で取得できず、WebSearchのスニペットのみでの反映。
+  PubMed非索引（ISBS会議録のため）でMCPでの再検証もできない。確度は
+  forehandの既存citationと同じ「中」
+- **smash: 再調査しても直接使える数値・定性主張は見つからなかった**。
+  試したクエリ・見つかった論文と、使わなかった理由：
+  - "tennis forehand overhead smash" 関連のミオスケルタルモデリング論文
+    （25名・12カメラ100Hz等、実在する）はトルク・筋活動量・角速度
+    （肩内旋2400°/s等）が中心で、静的な関節角度（本アプリのelite_range
+    が必要とする形式）を報告していない
+    ├ "How execution of tennis forehand overhead smash changes the shoulder
+      complex kinematics" (ScienceDirect, DOI要確認)
+    └ "Muscle activity of upper extremity during the tennis forehand
+      overhead smash" (ScienceDirect)
+  - "soft-tennis smash"（PMID 16498179）はヒットしたが、ソフトテニス
+    （日本・韓国の軟式庭球）は硬式テニスと用具・グリップ・技術が異なる
+    別競技のため転用しなかった（種目を跨いだ数値流用は不変原則1違反）
+  - badminton overhead smashの文献は多数あるが（ACL損傷リスク・
+    シザーズキック着地等）、種目が違う（ラケット・シャトル・ジャンプの
+    有無が異なる）ため同様に転用しなかった
+  - 一般コーチングブログ（tennisnation.com等）はトロフィーポジションへの
+    移行が「サーブより単純化される」という定性的な言及はあったが、
+    査読無し・数値なしで出典としての確度が低く、かつ現行4指標
+    （point_arm_apex_height / shoulder_hip_separation_at_trophy /
+    elbow_extension_at_impact / contact_height_relative）のどれにも
+    直接対応しないため見送った
 
-このため、smash/volleyの指標は引き続き完全なplaceholder（`elite_range`も
-`expected_sign`も設定なし）のまま据え置く。捏造や無関係な文献の転用より
-「評価しない」ことを選ぶのは不変原則1どおりの判断（データ自体は表示され、
-レンジ比較・方向性評価のみ行わない設計。12 §ロールアウト3dで想定済みの
-フォールバック）。
+以上より、smashの4指標は引き続き完全なplaceholder（`elite_range`も
+`expected_sign`も設定なし）のまま据え置く。関連度の低い文献（他種目・
+異なる測定対象）を無理に転用するより「評価しない」ことを選ぶのは
+不変原則1どおりの判断（データ自体は表示され、レンジ比較・方向性評価
+のみ行わない設計。12 §ロールアウト3dで想定済みのフォールバック）。
 
 ## 今後の文献調査で使えるツール（2026-07-11判明、恒久メモ）
 
@@ -156,8 +192,17 @@ Backhand Stroke"（PMC3588639）をPubMed MCPで全文取得済み。**分離角
   `get_full_text_article`でPMC収録論文の全文を取得できる。このセッションの
   `curl`/`WebFetch`ブロックを回避できることを実証済み。今後の同種タスクは
   まずこれを使う
+- **WebSearch**（2026-07-11追記）— hermes-relayが未接続の場合の代替として
+  使用（CLAUDE.mdの原則上は本来hermes-relay経由が指示だが、hermes未接続時は
+  ユーザー了承の上でWebSearchにフォールバックした）。PubMed非索引の会議録
+  （ISBS proceedings等）やコーチング系文献の発見に有効。ただし
+  **スニペットのみで本文は取得できない**ことが多い（WebFetch/curlは
+  このセッションで全面ブロックされたまま、Wikipediaでも再現済み）。
+  検索クエリは「種目名+具体的な部位+angle/degrees」のように狭く具体的に
+  すると当たりやすい（例："Kinematic Analysis of Tennis Volley" のような
+  論文タイトルの部分一致がヒットに直結した）
 - **Elicit**（OAuth要）— 分野を問わない学術論文検索・要約。PubMed非対応領域
-  （工学・社会科学等）で有用
+  （工学・社会科学等）で有用。未使用のまま
 - 上記いずれも書籍（コーチング教本等）は対象外。別問題として残る
 
 ## 次のアクション（引き継ぎ用）
@@ -166,11 +211,16 @@ Backhand Stroke"（PMC3588639）をPubMed MCPで全文取得済み。**分離角
    PMC3588639の図表から実際の度数を読み取れれば、`expected_sign`を
    `elite_range`に格上げできる（図表は画像解析が必要、未着手）。
    PMC4306773は本文取得できず（コネクタ側の既知の限界、変わらず）
-2. smash: PubMed検索で該当0件（定性的な主張も含めて無し、確認済み）。
+2. smash: PubMed・WebSearch双方で再調査したが、現行4指標に直接対応する
+   数値・定性主張は見つからなかった（上記「smash/volley再調査」参照）。
    サーブの値を流用するか、"文献なし"のまま`citation_status`をショット単位で
-   正直に表示する設計にするか判断する
-3. volley: PubMed検索で該当する角度データ・定性的主張ともに0件（確認済み）。
-   文献ベースでの裏取りは実質的に手詰まり。レンジ比較・方向性評価なし・
+   正直に表示する設計にするか判断する。本文入手が可能になれば
+   "How execution of tennis forehand overhead smash changes the shoulder
+   complex kinematics"（ScienceDirect, 25名・12カメラ100Hz）が次点候補
+3. volley: knee_flexion_at_contactはHuang(2008)で反映済み。残る2指標
+   （elbow_angle_delta_through_contact, contact_forward_of_body）は
+   引き続き未着手。elbow_angle_delta_through_contactは「デルタ」を
+   報告する文献が必要で、Huang(2008)の絶対角データは流用不可
    測定値のみ表示（12 §ロールアウト3dで想定済みのフォールバック）を採用
 4. `citation_status`の指標単位・ショット単位への細分化（スキーマ変更）を検討する
    （定性/定量の別も含めて。現状はファイル全体で1フラグのまま）

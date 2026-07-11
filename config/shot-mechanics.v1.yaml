@@ -398,7 +398,16 @@ shots:
         primitive: joint_angle
         args: {points: [dominant_hip, dominant_knee, dominant_ankle]}
         unit: deg
-        elite_range: [120, 150]
+        elite_range: [155, 180]
         tolerance: 10
         advice_key: stay_low
-        source: placeholder
+        source: >-
+          Huang, C.F., "Kinematic Analysis of Tennis Volley", ISBS 2008
+          Conference Proceedings (International Society of Biomechanics in
+          Sports, Seoul, 2008-07-14〜18) — 熟練プレーヤー15名・5箇所の
+          打点位置での平均膝角度167.63°をWebSearch経由で確認（本文PDFは
+          このセッションのWebFetch/curl制約で直接取得不可。PubMed非索引の
+          ため MCP でも再検証できず、確度は「中」）。5箇所の打点を平均した
+          値のため、低い打点のボレー（より深い膝の曲げが必要）を過小評価
+          している可能性がある点に留意。旧placeholder値[120,150]は
+          出典なしの推測だったため、本文献値へ置き換えた。
