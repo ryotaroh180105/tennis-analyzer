@@ -1,0 +1,333 @@
+# ショット別フォーム解析 参照レンジ v1（Phase 3拡張）
+# 設計: docs/design/12-form-analysis.md（スキーマ定義はこのファイル冒頭コメントが正）
+# serve-mechanics.v1.yaml を統合・置換する後継ファイル。stage6が本ファイルの
+# ローダーへ切り替わったコミットで旧ファイルを削除すること。
+#
+# スキーマ：
+#   shots.<shot_type>.detector   — コード側のフェーズ検出器名（serve_like | groundstroke | volley）
+#   shots.<shot_type>.metrics[]  — 指標定義。計算はprimitive（コード側の計算プリミティブ）×args。
+#     at:          detectorが提供するキーイベント名。存在しない参照はロード時に拒否
+#     primitive:   joint_angle | relative_height | forward_of_body | line_separation
+#                  | event_interval | angle_delta
+#     args:        関節はロール名（dominant_wrist / nondominant_knee 等）で書く。
+#                  ハンドネス解決はエンジン側
+#     only_style:  （任意）backhandのみ。one_handed | two_handed で出し分け
+#     consistency_cv_max: （任意）スイング間の IQR/中央値 がこれを超えたら
+#                  「ばらつき大」フィードバック候補にする
+#
+# citation_status: 全ショットの elite_range は文献レビュー未完了の暫定値（placeholder）。
+# コーチング文脈で提示する前に一次文献（ITF Coaching & Sport Science Review等）で検証し
+# metrics[].source を具体的出典に差し替えること。それまでUI/LLM側は
+# 「参考値（検証中）」の断り書きを必須で添える（06 §リスクまとめ）。
+version: 1
+citation_status: placeholder_pending_literature_review
+
+defaults:
+  # ランドマークの平均visibilityがこれ未満の指標は測定不能＝unknown（不変原則1）
+  min_landmark_visibility: 0.6
+  # レンジ逸脱の重要度ランキングでフィードバックする件数の上限（06 §比較アルゴリズム4）
+  max_feedback_metrics: 3
+
+# スイング分割（1動画=複数スイング前提。12 §スイング分割）
+swing_detection:
+  min_peak_speed_mps: 3.0      # 利き手首スピード（world座標m/s）のピーク下限。placeholder
+  min_interval_s: 1.5          # 直前スイングからこれ未満のピークは同一スイングとみなす
+  window_pre_s: 1.5            # ピーク前の切り出し窓
+  window_post_s: 1.0           # ピーク後の切り出し窓
+  min_valid_swings: 3          # 有効スイングがこれ未満なら insufficient_data（レンジ比較を出さない）
+
+shots:
+  # -------------------------------------------------------------
+  # serve — serve-mechanics.v1.yaml からの移設（指標は同一）
+  # -------------------------------------------------------------
+  serve:
+    detector: serve_like
+    phases: [preparation, toss, trophy, acceleration, impact, follow_through]
+    metrics:
+      - id: knee_flexion_at_trophy
+        at: trophy
+        primitive: joint_angle
+        args: {points: [nondominant_hip, nondominant_knee, nondominant_ankle]}
+        unit: deg
+        elite_range: [95, 120]
+        tolerance: 8
+        advice_key: knee_bend
+        source: placeholder
+
+      - id: elbow_height_at_trophy
+        at: trophy
+        primitive: relative_height
+        args: {point: dominant_elbow, ref: dominant_shoulder}
+        unit: relative_torso
+        elite_range: [0.9, 1.15]
+        tolerance: 0.1
+        advice_key: trophy_elbow
+        source: placeholder
+
+      - id: shoulder_hip_separation_at_trophy
+        at: trophy
+        primitive: line_separation
+        args: {lines: [shoulder_line, hip_line]}
+        unit: deg
+        elite_range: [20, 40]
+        tolerance: 8
+        advice_key: hip_shoulder_separation
+        source: placeholder
+
+      - id: elbow_extension_at_impact
+        at: impact
+        primitive: joint_angle
+        args: {points: [dominant_shoulder, dominant_elbow, dominant_wrist]}
+        unit: deg
+        elite_range: [160, 180]
+        tolerance: 10
+        advice_key: impact_extension
+        source: placeholder
+
+      - id: contact_height_relative
+        at: impact
+        primitive: relative_height
+        args: {point: dominant_wrist, ref: dominant_shoulder}
+        unit: relative_torso
+        elite_range: [1.3, 1.6]
+        tolerance: 0.15
+        consistency_cv_max: 0.2
+        advice_key: contact_height
+        source: placeholder
+
+      - id: toss_apex_to_impact_ms
+        at: impact
+        primitive: event_interval
+        args: {from_event: toss_apex, to_event: impact}
+        unit: ms
+        elite_range: [350, 550]
+        tolerance: 80
+        advice_key: toss_timing
+        source: placeholder
+
+  # -------------------------------------------------------------
+  # forehand（3b）
+  # -------------------------------------------------------------
+  forehand:
+    detector: groundstroke
+    phases: [ready, backswing, forward_swing, contact, follow_through]
+    metrics:
+      - id: shoulder_hip_separation_at_backswing
+        at: backswing_end
+        primitive: line_separation
+        args: {lines: [shoulder_line, hip_line]}
+        unit: deg
+        elite_range: [25, 45]
+        tolerance: 8
+        advice_key: unit_turn
+        source: placeholder
+
+      - id: contact_forward_of_hip
+        at: contact
+        primitive: forward_of_body
+        args: {point: dominant_wrist}
+        unit: relative_torso
+        elite_range: [0.3, 0.7]
+        tolerance: 0.1
+        consistency_cv_max: 0.25
+        advice_key: contact_point
+        source: placeholder
+
+      - id: contact_height_relative
+        at: contact
+        primitive: relative_height
+        args: {point: dominant_wrist, ref: dominant_hip}
+        unit: relative_torso
+        elite_range: [0.5, 1.0]
+        tolerance: 0.15
+        consistency_cv_max: 0.25
+        advice_key: contact_height
+        source: placeholder
+
+      - id: backswing_to_contact_ms
+        at: contact
+        primitive: event_interval
+        args: {from_event: backswing_end, to_event: contact}
+        unit: ms
+        elite_range: [250, 450]
+        tolerance: 80
+        advice_key: swing_tempo
+        source: placeholder
+
+      # ダブルベンド〜ストレートアームまで正常形が広い。レンジ広め・参考扱い
+      - id: elbow_angle_at_contact
+        at: contact
+        primitive: joint_angle
+        args: {points: [dominant_shoulder, dominant_elbow, dominant_wrist]}
+        unit: deg
+        elite_range: [110, 165]
+        tolerance: 15
+        advice_key: arm_structure
+        source: placeholder
+
+  # -------------------------------------------------------------
+  # backhand（3b） — スタイル別出し分けあり
+  # -------------------------------------------------------------
+  backhand:
+    detector: groundstroke
+    phases: [ready, backswing, forward_swing, contact, follow_through]
+    metrics:
+      - id: shoulder_hip_separation_at_backswing
+        only_style: one_handed
+        at: backswing_end
+        primitive: line_separation
+        args: {lines: [shoulder_line, hip_line]}
+        unit: deg
+        elite_range: [25, 45]
+        tolerance: 8
+        advice_key: unit_turn
+        source: placeholder
+
+      # 両手打ちは体幹一体で回るため捻転差の参照レンジが狭い
+      - id: shoulder_hip_separation_at_backswing_2h
+        only_style: two_handed
+        at: backswing_end
+        primitive: line_separation
+        args: {lines: [shoulder_line, hip_line]}
+        unit: deg
+        elite_range: [15, 35]
+        tolerance: 8
+        advice_key: unit_turn
+        source: placeholder
+
+      - id: contact_forward_of_hip
+        at: contact
+        primitive: forward_of_body
+        args: {point: dominant_wrist}
+        unit: relative_torso
+        elite_range: [0.35, 0.75]   # バックはフォアよりやや前で捉える
+        tolerance: 0.1
+        consistency_cv_max: 0.25
+        advice_key: contact_point
+        source: placeholder
+
+      - id: contact_height_relative
+        at: contact
+        primitive: relative_height
+        args: {point: dominant_wrist, ref: dominant_hip}
+        unit: relative_torso
+        elite_range: [0.5, 1.0]
+        tolerance: 0.15
+        consistency_cv_max: 0.25
+        advice_key: contact_height
+        source: placeholder
+
+      # 片手バックはコンタクトでの肘伸展が形の要
+      - id: elbow_extension_at_contact
+        only_style: one_handed
+        at: contact
+        primitive: joint_angle
+        args: {points: [dominant_shoulder, dominant_elbow, dominant_wrist]}
+        unit: deg
+        elite_range: [150, 180]
+        tolerance: 10
+        advice_key: arm_structure
+        source: placeholder
+
+      - id: backswing_to_contact_ms
+        at: contact
+        primitive: event_interval
+        args: {from_event: backswing_end, to_event: contact}
+        unit: ms
+        elite_range: [250, 450]
+        tolerance: 80
+        advice_key: swing_tempo
+        source: placeholder
+
+  # -------------------------------------------------------------
+  # smash（3c） — serve検出器の流用。トス系タイミング指標は除外
+  # -------------------------------------------------------------
+  smash:
+    detector: serve_like
+    phases: [preparation, point, trophy, acceleration, impact, follow_through]
+    phase_labels:
+      ja:
+        point: ポインティング   # 非利き腕でボールを指す動作（トスの読み替え）
+    metrics:
+      - id: point_arm_apex_height
+        at: toss_apex           # detector上のイベント名はserve_like共通（非利き手首の頂点）
+        primitive: relative_height
+        args: {point: nondominant_wrist, ref: nondominant_shoulder}
+        unit: relative_torso
+        elite_range: [0.6, 1.2]
+        tolerance: 0.15
+        advice_key: point_arm
+        source: placeholder
+
+      - id: shoulder_hip_separation_at_trophy
+        at: trophy
+        primitive: line_separation
+        args: {lines: [shoulder_line, hip_line]}
+        unit: deg
+        elite_range: [20, 40]
+        tolerance: 8
+        advice_key: hip_shoulder_separation
+        source: placeholder
+
+      - id: elbow_extension_at_impact
+        at: impact
+        primitive: joint_angle
+        args: {points: [dominant_shoulder, dominant_elbow, dominant_wrist]}
+        unit: deg
+        elite_range: [155, 180]
+        tolerance: 10
+        advice_key: impact_extension
+        source: placeholder
+
+      - id: contact_height_relative
+        at: impact
+        primitive: relative_height
+        args: {point: dominant_wrist, ref: dominant_shoulder}
+        unit: relative_torso
+        elite_range: [1.2, 1.6]
+        tolerance: 0.15
+        consistency_cv_max: 0.2
+        advice_key: contact_height
+        source: placeholder
+
+  # -------------------------------------------------------------
+  # volley（3d） — 文献が最も薄い。レンジ検証完了まで「測定値のみ表示」許容（12 §ロールアウト）
+  # -------------------------------------------------------------
+  volley:
+    detector: volley
+    phases: [ready, punch, contact, recovery]
+    metrics:
+      # ボレーはスイングしない：コンタクト前後の肘角度変化が小さいほどパンチボレーの形
+      - id: elbow_angle_delta_through_contact
+        at: contact
+        primitive: angle_delta
+        args:
+          points: [dominant_shoulder, dominant_elbow, dominant_wrist]
+          from_event: punch_start
+          to_event: contact
+        unit: deg
+        elite_range: [0, 25]
+        tolerance: 10
+        advice_key: punch_not_swing
+        source: placeholder
+
+      - id: contact_forward_of_body
+        at: contact
+        primitive: forward_of_body
+        args: {point: dominant_wrist}
+        unit: relative_torso
+        elite_range: [0.2, 0.6]
+        tolerance: 0.1
+        consistency_cv_max: 0.3
+        advice_key: contact_point
+        source: placeholder
+
+      - id: knee_flexion_at_contact
+        at: contact
+        primitive: joint_angle
+        args: {points: [dominant_hip, dominant_knee, dominant_ankle]}
+        unit: deg
+        elite_range: [120, 150]
+        tolerance: 10
+        advice_key: stay_low
+        source: placeholder

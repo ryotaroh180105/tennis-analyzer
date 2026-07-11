@@ -22,9 +22,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ドキュメントの読み順
 
-`docs/design/00-overview.md` が意思決定サマリ。個別論点は 01〜11 に分かれており、
+`docs/design/00-overview.md` が意思決定サマリ。個別論点は 01〜12 に分かれており、
 01〜07 はブリーフの論点番号にほぼ対応、08 が導入・保守・運用、09 がマーケ・差別化・拡張戦略、
-**10 が Phase 0 実装仕様（実装セッションはまずこれを読む）**、11 がUI設計。
+**10 が Phase 0 実装仕様（実装セッションはまずこれを読む）**、11 がUI設計、
+12 がフォーム解析のショット別拡張（Phase 3）。
 設計変更時は 00 のサマリ表も更新すること。
 
 ## 設計上の不変原則（変更にはユーザー合意が必要）
@@ -48,6 +49,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `advice-rules.v1.yaml` — アドバイス発火条件とテンプレート。「何を言うか」はルール、
   「どう言うか」はClaude APIという分業。DSL定義はファイル冒頭コメントが正。
 - `segmentation.v1.yaml`（Phase 0で新設） — 区間判定しきい値。しきい値のコード内定数は禁止。
+- `shot-mechanics.v1.yaml`（Phase 3） — ショット別フォーム解析の参照レンジ・スイング分割
+  しきい値。指標は計算プリミティブ（コード側6個）×YAML宣言の分離。`serve-mechanics.v1.yaml`
+  はこのファイルに統合済みで廃止予定（stage6のローダー切替コミットで削除）。
 - 全ファイルともバージョン付きリソースとして扱い、破壊的変更は新バージョンファイルを追加する。
 - コート寸法・ライン定義は `court-spec.yaml` に外出しする（コードへのハードコード禁止。
   他ラケットスポーツ展開時の改修範囲を限定するため）。

@@ -1,4 +1,6 @@
 # サーブメカニクス参照レンジ v1（Phase 3で使用）
+# ※ 廃止予定：shot-mechanics.v1.yaml（全ショット統合版、docs/design/12-form-analysis.md）が後継。
+#    stage6が新ローダーへ切り替わったコミットで本ファイルを削除すること。
 # 設計: docs/design/06-pro-reference-data.md §案1（バイオメカニクス文献の指標レンジをパラメータ化）
 # CLAUDE.md 不変原則1・2に準拠：しきい値はコードにハードコードせず、断定を避けるトーンで提示する。
 #

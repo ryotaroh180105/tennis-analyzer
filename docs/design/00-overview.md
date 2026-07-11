@@ -18,6 +18,7 @@
 | 9 | 拡張戦略（geo/sport） | **世界シェアを狙う**を明示的に決定。日本→台湾・タイ（LINE圏）→欧米（チャネル差し替え）。パデル・ピックルボールは court-spec.yaml で改修範囲を限定。Phase 0〜1では布石（チャネル抽象・i18nキー・court-spec規約）のみ実装 | [09-go-to-market.md](09-go-to-market.md) |
 | 10 | Phase 0 実装仕様 | Sonnet が質問ゼロで実装開始できる粒度のAPI契約・DBスキーマ・ジョブフロー・マイルストーン（配管先行・CV差し替え） | [10-phase0-implementation-plan.md](10-phase0-implementation-plan.md) |
 | 11 | UI設計 | 区間タイムライン・リボンをシグネチャ要素に。誠実さ（unknown・縮退モード）を隠さず可視化。修正UIを主要動線に格上げ。両テーマ・親指圏操作・利用者の言葉を原則化 | [11-ui-design.md](11-ui-design.md) |
+| 12 | フォーム解析拡張 | Phase 3を**サーブ専用→主要ショット全種**（serve/FH/BH/smash/volley）へ拡張（2026-07-11決定）。練習撮り専用・ショット種別はユーザー申告・1動画=複数スイング前提（分割→集約）。指標は計算プリミティブ（コード）×YAML宣言（`shot-mechanics.v1.yaml`）に分離。導入順は FH/BH → smash → volley | [12-form-analysis.md](12-form-analysis.md) |
 
 ## 設計原則
 
