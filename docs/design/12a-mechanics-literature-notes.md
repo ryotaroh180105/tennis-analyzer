@@ -1,49 +1,66 @@
-# 12a. shot-mechanics.v1.yaml 文献レビュー：一次調査メモ（未確定）
+# 12a. shot-mechanics.v1.yaml 文献レビュー：進捗メモ
 
-タスク#26の一次調査結果。**shot-mechanics.v1.yamlの数値・citation_statusはまだ更新していない**
-（理由は下記「保留にした理由」）。次にこのタスクを引き継ぐ人（人間・セッション問わず）向けの
-作業メモとして残す。
+タスク#26の調査結果。**4指標はshot-mechanics.v1.yamlに反映済み**（下表）。
+citation_statusは全体としてはまだ「検証中」のまま（理由は下記）。
 
-## 保留にした理由（重要）
+## この環境からの本文PDFアクセスについて（重要な制約）
+
+このセッションの環境は組織のegressポリシーで、学術系ドメイン
+（pmc.ncbi.nlm.nih.gov / mdpi.com / frontiersin.org / scholar.google.com /
+semanticscholar.org / researchgate.net / pubmed.ncbi.nlm.nih.gov）への
+アウトバウンド接続がプロキシ側で一律ブロックされている（`curl`直叩きでも
+`CONFIG_error connect tunnel failed, response 403`、WebFetchツールでも同じ403）。
+これは特定サイトのbot対策ではなく**環境のネットワークポリシーそのもの**なので、
+検索手段（WebSearch/hermes-relay等）を変えても同じ壁にあたる。WebSearchの
+検索結果スニペット経由の情報しか得られない。
+
+## 保留にした理由（citation_statusを全体では変えていない理由）
 
 1. **角度の符号規約が情報源ごとに不明瞭**：文献は「屈曲角度」（伸展位=0°、曲がるほど増加）で
    報告することが多いが、本アプリの `joint_angle` プリミティブは「関節がなす角」
-   （伸展位=180°、曲がるほど減少）を返す。例えば「膝屈曲65°」は関節角度に直すと約115°になるが、
-   この変換が情報源の定義と一致するかは要約（WebSearchのスニペット）だけでは確証が持てない。
-   誤変換のまま反映すると「良いフォームを悪いと言う／悪いフォームを良いと言う」という
-   誤った断定になり、プレースホルダーのまま（=测定するが評価しない）より悪い（不変原則1）。
-2. **本文PDFへのアクセスがこの環境からブロックされている**：PMC・MDPIともHTTP 403。
-   スニペットの数値は方法論（どのフレーム・どの定義か）を確認できないまま引用することになる。
-3. **イベント定義の対応関係が未検証**：文献の「cocking phase」「trophy position」等が、
-   本アプリのdetectors.py（serve_like: toss_apex/trophy/impact）の検出フレームと
+   （伸展位=180°、曲がるほど減少）を返す。スポーツバイオメカニクスでの一般的な
+   goniometric conventionに基づき `180 - flexion` で変換して反映したが、
+   各論文の実際の定義は本文を読めておらず確証はない。
+2. **イベント定義の対応関係が未検証**：文献の「cocking phase」等が、本アプリの
+   detectors.py（serve_like: toss_apex/trophy/impact）の検出フレームと
    厳密に対応するとは限らない。
 
-以上により、**このメモの数値は「有力な当たり」であって、そのままYAMLに転記できる確定値ではない**。
+`line_separation`系（捻転差）は回旋の角度差そのものであり上記1の変換問題が
+無いため、joint_angle系（膝・肘の屈曲/伸展）より相対的に信頼度が高い。
 
-## 見つかった一次情報（要出典確認）
+## 反映済み（shot-mechanics.v1.yaml内のsourceフィールドに詳細あり）
 
-| ショット | 指標 | 報告値 | 出典 | 確度・注記 |
-|---|---|---|---|---|
-| serve | 前膝の屈曲（トロフィー） | 64.5 ± 9.7°（屈曲角度表記と推定） | Frontiers in Sports and Active Living, 2024, systematic review & meta-analysis, "Kinematics characteristics of key point of interest during tennis serve"（[frontiersin.org](https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1432030/full)） | 関節角度換算だと約115°で現行placeholder[95,120]に近いが要検証。メタ分析なので複数研究の統合値、信頼度は比較的高い |
-| serve | 肩腰捻転差（cocking位） | 約20° | 同上メタ分析の要約より | 現行placeholder[20,40]の下限寄り。要fetch再確認 |
-| serve | 肘角度（インパクト時、屈曲表記） | 30.1 ± 15.9° | 同メタ分析 | 屈曲角度なら関節角度換算で約150°。現行placeholder[160,180]よりやや浅い可能性 |
-| serve | 肩挙上角（インパクト時） | 110.7 ± 16.9° | 同メタ分析 | 本アプリの指標に未対応（elbow_extension_at_impactとは別軸）。将来指標追加の候補 |
-| serve | 体幹前傾（インパクト時） | 約48°（水平基準） | 同メタ分析 | 未対応。将来指標追加の候補 |
-| forehand | 肩腰捻転差（バックスイング） | 高レベル選手 20.44° / 一般プレーヤー 15.79° | 出典不明の二次要約（要一次確認）。"shoulder-hip angle of high-level tennis players" | 現行placeholder[25,45]より明確に低い。レベル別の値がある点は12の「プロファイル別レンジ」構想（06参照）と相性が良い |
+| ショット | 指標 | 反映した値 | 元の報告値 | 変換 | 出典 |
+|---|---|---|---|---|---|
+| serve | knee_flexion_at_trophy | [106, 125]°, tol 10 | 前膝屈曲 64.5±9.7° | 180-flexion、±1SD | Frontiers Sports Act Living (2024) 系統的レビュー・メタ分析 |
+| serve | shoulder_hip_separation_at_trophy | [15, 30]°, tol 8 | cocking位で約20°（単一点推定） | 変換不要（回旋差） | 同上 |
+| serve | elbow_extension_at_impact | [134, 166]°, tol 12 | インパクト時肘屈曲 30.1±15.9° | 180-flexion、±1SD | 同上 |
+| forehand | shoulder_hip_separation_at_backswing | [18, 30]°, tol 6 | バックスイング終盤：上級者20.44°/一般15.79°（P=0.029） | 変換不要（回旋差） | "Biomechanical model of forehand stroke of tennis players"（ResearchGate、3D動作解析） |
 
-## 未着手（文献自体が薄いと予想され、今回調査していない）
+いずれも `citation_status` は据え置き（`placeholder_pending_literature_review`）。
+UI/LLM側の「参考値（検証中）」表記は変更していない — 本文未確認のjoint_angle変換を
+含むため、上記の反映は「プレースホルダーより実データに近い暫定値」という位置づけ。
 
-- smash（サーブ系の流用ができる範囲を除く固有指標）
-- volley（12のロールアウト方針どおり、レンジ比較なし公開が現実的な可能性が高い）
-- backhand固有（両手/片手のスタイル別数値）
-- タイミング系（toss_apex_to_impact_ms、backswing_to_contact_ms）
+## 未着手（引き続きplaceholderのまま）
+
+- serve: elbow_height_at_trophy, contact_height_relative, toss_apex_to_impact_ms
+- forehand: contact_forward_of_hip, contact_height_relative, backswing_to_contact_ms, elbow_angle_at_contact
+- backhand: 全指標（文献検索未実施。特に両手/片手のスタイル別数値）
+- smash: 全指標（サーブの値を流用できる可能性はあるが未検討）
+- volley: 全指標（設計時点の想定どおり文献自体が薄い見込み）
+
+参考として見つかったが本アプリの指標に未対応の値（将来の指標追加候補）：
+サーブインパクト時の肩挙上角 110.7±16.9°、体幹前傾（水平基準）約48°
+（いずれもFrontiers 2024メタ分析）。
 
 ## 次のアクション（引き継ぎ用）
 
-1. 上記出典のPDF本文（機関アクセス・購入・著者への問い合わせ等、このセッションの
-   WebFetchでは403のため取得できなかった）を入手し、角度の符号規約・測定フレーム定義を確認する。
-2. 確認できた指標から `shot-mechanics.v1.yaml` の `elite_range`/`tolerance`/`source` を更新し、
+1. 上記出典のPDF本文（機関アクセス・購入・著者への問い合わせ等）を入手し、
+   角度の符号規約・測定フレーム定義を確認する。このセッションの環境からは
+   到達不能（上記「本文PDFアクセスについて」参照）。
+2. 確認できた指標から `elite_range`/`tolerance`/`source` を再調整し、
    `citation_status` を該当ショットだけ `verified` 等に細分化する
    （現状は全ショット共通の1フラグなので、指標単位・ショット単位に分ける設計変更が必要）。
 3. コーチ・理学療法士等のドメイン専門家によるサニティチェックを推奨（06 §リスクまとめの
    「誤った指導リスク」対応として、文献値だけでなく実務者の確認を挟む）。
+4. backhand/smash/volleyの文献調査は未着手。

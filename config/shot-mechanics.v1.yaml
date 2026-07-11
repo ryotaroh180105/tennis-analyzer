@@ -15,10 +15,22 @@
 #     consistency_cv_max: （任意）スイング間の IQR/中央値 がこれを超えたら
 #                  「ばらつき大」フィードバック候補にする
 #
-# citation_status: 全ショットの elite_range は文献レビュー未完了の暫定値（placeholder）。
+# citation_status: 大半の elite_range は文献レビュー未完了の暫定値（placeholder）。
 # コーチング文脈で提示する前に一次文献（ITF Coaching & Sport Science Review等）で検証し
 # metrics[].source を具体的出典に差し替えること。それまでUI/LLM側は
 # 「参考値（検証中）」の断り書きを必須で添える（06 §リスクまとめ）。
+#
+# 一部の指標（source が placeholder 以外のもの）はWebSearch経由の一次調査
+# （docs/design/12a-mechanics-literature-notes.md）で見つかった実際の文献値を反映済み。
+# ただし以下2点が未確認のため、citation_statusは全体としてまだ「検証中」のまま扱う：
+#   1. 関節角度の符号規約（文献の多くは「屈曲角度＝伸展位0°」表記、本アプリの
+#      joint_angleプリミティブは「関節がなす角＝伸展位180°」。180-flexionで変換したが
+#      本文PDFがこの開発環境からアクセス不能（学術ドメインが組織のegressポリシーで
+#      ブロックされている）で一次確認できていない
+#   2. 文献側のフェーズ定義（例: "cocking phase"）と本アプリのdetector側イベント
+#      （例: trophy）の厳密な対応関係
+# line_separation系（捻転差）はそもそも回旋の角度差であり上記1の変換問題が無いため
+# 相対的に信頼度が高い。詳細は12aの表を参照。
 version: 1
 citation_status: placeholder_pending_literature_review
 
@@ -49,10 +61,13 @@ shots:
         primitive: joint_angle
         args: {points: [nondominant_hip, nondominant_knee, nondominant_ankle]}
         unit: deg
-        elite_range: [95, 120]
-        tolerance: 8
+        # 文献: 前膝屈曲 64.5±9.7°（伸展位0°基準の屈曲角度）。本アプリのjoint_angleは
+        # 伸展位180°基準のため 180-flexion で変換：平均115.5°、±1SDで[105.8, 125.2]。
+        # 変換の妥当性は本文PDF未確認（上部citation_statusコメント参照）
+        elite_range: [106, 125]
+        tolerance: 10
         advice_key: knee_bend
-        source: placeholder
+        source: "Frontiers Sports Act Living (2024) tennis serve kinematics systematic review & meta-analysis — https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1432030/full ; angle-convention inferred, not confirmed against primary methodology"
 
       - id: elbow_height_at_trophy
         at: trophy
@@ -69,20 +84,25 @@ shots:
         primitive: line_separation
         args: {lines: [shoulder_line, hip_line]}
         unit: deg
-        elite_range: [20, 40]
+        # 文献: cocking phase（本アプリのtrophyに近似）で約20°。単一点推定のためSD不明、
+        # 幅を持たせた。line_separationは回旋の角度差そのものなので伸展/屈曲の符号規約
+        # 問題は無い（knee/elbow系より信頼度が高い）
+        elite_range: [15, 30]
         tolerance: 8
         advice_key: hip_shoulder_separation
-        source: placeholder
+        source: "Frontiers Sports Act Living (2024) tennis serve kinematics systematic review & meta-analysis — https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1432030/full ; phase-alignment (cocking phase vs. trophy event) unconfirmed"
 
       - id: elbow_extension_at_impact
         at: impact
         primitive: joint_angle
         args: {points: [dominant_shoulder, dominant_elbow, dominant_wrist]}
         unit: deg
-        elite_range: [160, 180]
-        tolerance: 10
+        # 文献: インパクト時肘屈曲 30.1±15.9°（伸展位0°基準）。180-flexionで変換：
+        # 平均149.9°、±1SDで[134.0, 165.8]。変換の妥当性は本文PDF未確認
+        elite_range: [134, 166]
+        tolerance: 12
         advice_key: impact_extension
-        source: placeholder
+        source: "Frontiers Sports Act Living (2024) tennis serve kinematics systematic review & meta-analysis — https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1432030/full ; angle-convention inferred, not confirmed against primary methodology"
 
       - id: contact_height_relative
         at: impact
@@ -117,10 +137,13 @@ shots:
         primitive: line_separation
         args: {lines: [shoulder_line, hip_line]}
         unit: deg
-        elite_range: [25, 45]
-        tolerance: 8
+        # 文献: 3D動作解析、バックスイング終盤（本アプリのbackswing_endと定義が近い）で
+        # 上級者20.44° / 一般プレーヤー15.79°（P=0.029で有意差）。line_separationは
+        # 回旋の角度差そのものなので符号規約問題は無い
+        elite_range: [18, 30]
+        tolerance: 6
         advice_key: unit_turn
-        source: placeholder
+        source: "Biomechanical model of forehand stroke of tennis players (ResearchGate) — https://www.researchgate.net/publication/390275143_Biomechanical_model_of_forehand_stroke_of_tennis_players ; two-group means (skilled vs. ordinary), no SD reported, range is an estimate"
 
       - id: contact_forward_of_hip
         at: contact
