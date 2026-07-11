@@ -20,17 +20,14 @@
 # metrics[].source を具体的出典に差し替えること。それまでUI/LLM側は
 # 「参考値（検証中）」の断り書きを必須で添える（06 §リスクまとめ）。
 #
-# 一部の指標（source が placeholder 以外のもの）はWebSearch経由の一次調査
-# （docs/design/12a-mechanics-literature-notes.md）で見つかった実際の文献値を反映済み。
-# ただし以下2点が未確認のため、citation_statusは全体としてまだ「検証中」のまま扱う：
-#   1. 関節角度の符号規約（文献の多くは「屈曲角度＝伸展位0°」表記、本アプリの
-#      joint_angleプリミティブは「関節がなす角＝伸展位180°」。180-flexionで変換したが
-#      本文PDFがこの開発環境からアクセス不能（学術ドメインが組織のegressポリシーで
-#      ブロックされている）で一次確認できていない
-#   2. 文献側のフェーズ定義（例: "cocking phase"）と本アプリのdetector側イベント
-#      （例: trophy）の厳密な対応関係
-# line_separation系（捻転差）はそもそも回旋の角度差であり上記1の変換問題が無いため
-# 相対的に信頼度が高い。詳細は12aの表を参照。
+# serveの3指標（knee_flexion_at_trophy / shoulder_hip_separation_at_trophy /
+# elbow_extension_at_impact）はPubMed MCP（get_full_text_article）で本文を確認済み。
+# 角度の符号規約（ISBコンベンション、伸展位0°基準）をMethods章の記述で明示的に確認し、
+# 本アプリのjoint_angleプリミティブ（伸展位180°基準）への180-flexion変換の妥当性が
+# 裏付けられた。forehandの1指標はWebSearch経由（本文未確認）。それ以外は依然placeholder。
+# citation_statusは全体としてはまだ「検証中」のまま（指標単位・ショット単位への細分化は
+# 将来のスキーマ変更として12aに記載、今回は見送り）。詳細・出典はdocs/design/
+# 12a-mechanics-literature-notes.md参照。
 version: 1
 citation_status: placeholder_pending_literature_review
 
@@ -61,13 +58,17 @@ shots:
         primitive: joint_angle
         args: {points: [nondominant_hip, nondominant_knee, nondominant_ankle]}
         unit: deg
-        # 文献: 前膝屈曲 64.5±9.7°（伸展位0°基準の屈曲角度）。本アプリのjoint_angleは
-        # 伸展位180°基準のため 180-flexion で変換：平均115.5°、±1SDで[105.8, 125.2]。
-        # 変換の妥当性は本文PDF未確認（上部citation_statusコメント参照）
+        # 全文確認済み（PubMed MCP経由、PMC11260724）。Methods: "According to the ISB
+        # convention, all angles are defined as zero in the anatomical reference position"
+        # と明記されており、27研究のメタ分析統合値は屈曲角度（伸展位0°基準）で報告されている
+        # ことを本文で確認した。前膝（"front knee" = 利き手と逆側の踏み込み脚 = nondominant）
+        # 屈曲 64.5±9.7°。本アプリのjoint_angleは伸展位180°基準のため180-flexionで変換：
+        # 平均115.5°、±1SDで[105.8, 125.2]。他2文献の引用範囲（47–81°, 55.6–75°、いずれも
+        # 屈曲角度表記）とも整合
         elite_range: [106, 125]
         tolerance: 10
         advice_key: knee_bend
-        source: "Frontiers Sports Act Living (2024) tennis serve kinematics systematic review & meta-analysis — https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1432030/full ; angle-convention inferred, not confirmed against primary methodology"
+        source: "Jacquier-Bret & Gorce systematic review & meta-analysis of tennis serve kinematics, Front Sports Act Living 2024, DOI 10.3389/fspor.2024.1432030 (PMID 39040663, PMC11260724). Full text confirmed via PubMed MCP — angle convention explicitly verified (ISB, 0°=anatomical position)."
 
       - id: elbow_height_at_trophy
         at: trophy
@@ -84,22 +85,27 @@ shots:
         primitive: line_separation
         args: {lines: [shoulder_line, hip_line]}
         unit: deg
-        # 文献: cocking phase（本アプリのtrophyに近似）で約20°。単一点推定のためSD不明、
-        # 幅を持たせた。line_separationは回旋の角度差そのものなので伸展/屈曲の符号規約
-        # 問題は無い（knee/elbow系より信頼度が高い）
-        elite_range: [15, 30]
+        # 全文確認済み（PubMed MCP経由、PMC11175047 / PMC11496077、同一著者Jacquier-Bret&Gorce）。
+        # トロフィー位置での"lateral flexion shoulder-pelvis separation angle"として、
+        # 引用された個別研究群で 17±11°, 34±7°, 31.5±7.3°, 31.6±7.5°, 30.5±6.4°,
+        # 31.1±7.0°, 32.1±4.1°, 23±2°（サーブ種別・スタンス・成功/フォルト別）が報告されている。
+        # 大半が23〜34°に集中。line_separationは回旋の角度差そのものなので伸展/屈曲の
+        # 符号規約問題は無い（knee/elbow系より信頼度が高い）
+        elite_range: [23, 34]
         tolerance: 8
         advice_key: hip_shoulder_separation
-        source: "Frontiers Sports Act Living (2024) tennis serve kinematics systematic review & meta-analysis — https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1432030/full ; phase-alignment (cocking phase vs. trophy event) unconfirmed"
+        source: "Jacquier-Bret & Gorce, Sensors 2024, DOI 10.3390/s24113292 (PMID 38894086, PMC11175047) and Front Sports Act Living 2024, DOI 10.3389/fspor.2024.1451174 (PMID 39444495, PMC11496077); both cite a cluster of individual studies at trophy position. Full text confirmed via PubMed MCP."
 
       - id: elbow_extension_at_impact
         at: impact
         primitive: joint_angle
         args: {points: [dominant_shoulder, dominant_elbow, dominant_wrist]}
         unit: deg
-        # 文献: インパクト時肘屈曲 30.1±15.9°（伸展位0°基準）。180-flexionで変換：
-        # 平均149.9°、±1SDで[134.0, 165.8]。変換の妥当性は本文PDF未確認
-        elite_range: [134, 166]
+        # 全文確認済み（PMC11260724）。インパクト時肘屈曲は外れ値研究（Wang et al.）を
+        # 除いた精緻化値 29.2±9.9°（著者らが"more relevant"と明記）を採用。
+        # 180-flexionで変換：平均150.8°、±1SDで[140.9, 160.7]。他2文献の引用範囲
+        # （27–44°, 10–45°、いずれも屈曲角度表記）とも整合
+        elite_range: [141, 161]
         tolerance: 12
         advice_key: impact_extension
         source: "Frontiers Sports Act Living (2024) tennis serve kinematics systematic review & meta-analysis — https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1432030/full ; angle-convention inferred, not confirmed against primary methodology"
