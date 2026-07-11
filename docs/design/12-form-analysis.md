@@ -206,6 +206,9 @@ shots:
 各段階の公開ゲート＝該当ショットの `elite_range` の文献裏取り完了
 （それまでは citation_status ゲートの「参考値（検証中）」表記で限定公開）。
 
+文献裏取りの一次調査結果（未確定・引き継ぎ用メモ）は
+[12a-mechanics-literature-notes.md](12a-mechanics-literature-notes.md) を参照。
+
 ## リスク
 
 | リスク | 対応 |
