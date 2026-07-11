@@ -71,6 +71,34 @@ serveの3指標は個別に高確度だが、以下が残るため`citation_stat
 - サーブRLP（racket low point）の肩外旋: 130.1±26.5°
 - サーブインパクト時の肩挙上角: 110.7±16.9°（外れ値除外後: 104.6±6.1°）
 
+## 追加調査（PubMed MCP、backhand/smash/volley対象。2026-07-11）
+
+PubMed MCPが使えるようになったので、backhand/smash/volleyも通しで検索した。
+結論：**数値として反映できる新しい成果は無かった**。以下、探索の記録（次回の
+やり直しを防ぐため）。
+
+- **backhand**: `PMC4306773`（Genevois et al., "Performance Factors Related to
+  the Different Tennis Backhand Groundstrokes: A Review", J Sports Sci Med,
+  PMID 25729308）— 61論文を統合したレビューで理想的な情報源のはずだったが、
+  `get_full_text_article`で本文が空文字列で返る（アブストラクトのみ取得可能。
+  ジャーナル側のフォーマットがコネクタでパースできない可能性）。アブストラクト
+  自体は定性的な結論（両手打ちは体幹回旋依存・片手打ちは上肢の分節回旋依存）
+  のみで、度数の数値は含まれない。追加で "elbow extension impact degrees",
+  "pelvis rotation contact point" 等のクエリも試したが0件
+- **smash**: "tennis overhead smash kinematics/biomechanics" 系のクエリを
+  2パターン試したが、関連論文0件（1件だけヒットしたのはIMUでのショット分類の
+  論文で角度データなし）。設計時点の想定どおり、tennis smash固有の運動学文献は
+  PubMedに実質存在しない
+- **volley**: "tennis volley stroke kinematics biomechanics" で6件ヒットしたが、
+  関連性があるのはChow et al. 1999（"Movement characteristics of the tennis
+  volley", PMID 10378913）のみ。これも地面反力・反応時間・ストローク時間
+  （381〜803ms）の研究で、肘角度変化・膝屈曲・打点位置という現行YAMLの指標には
+  対応しない。他はIMUでのショット分類・クレアチンサプリの研究で無関係
+
+以上より、backhand/smash/volleyの`elite_range`は**引き続きplaceholderのまま**
+とする。捏造や弱い出典での穴埋めより、正直にplaceholderとして残す方針を維持
+（不変原則1）。
+
 ### backhand調査の手がかり（未確認）
 
 "The Kinematics of Trunk and Upper Extremities in One-Handed and Two-Handed
@@ -94,10 +122,15 @@ Backhand Stroke"（PMC3588639）をPubMed MCPで全文取得済み。**分離角
 ## 次のアクション（引き継ぎ用）
 
 1. backhand: PMC3588639の図表から分離角の数値を読み取る（テキスト抽出では
-   取得不可、別アプローチが必要）。PubMedで追加の片手/両手比較論文を検索する
-2. smash: サーブの値を流用するか、"文献なし"のまま`citation_status`を
-   ショット単位で正直に表示する設計にするか判断する
-3. volley: 未検索。PubMedで"tennis volley kinematics"等を試す
+   取得不可、別アプローチが必要。図表のみ画像として提供できれば読み取れる
+   可能性がある）。PMC4306773は本文取得できず（コネクタ側の既知の限界）
+2. smash: PubMed検索で該当0件を確認済み。サーブの値を流用するか、
+   "文献なし"のまま`citation_status`をショット単位で正直に表示する設計に
+   するか判断する
+3. volley: PubMed検索で該当する角度データ0件を確認済み（Chow et al. 1999は
+   タイミング・地面反力のみ）。文献ベースでの裏取りは実質的に手詰まり。
+   レンジ比較なし・測定値のみ表示（12 §ロールアウト3dで想定済みの
+   フォールバック）を採用するのが現実的
 4. `citation_status`の指標単位・ショット単位への細分化（スキーマ変更）を検討する
 5. コーチ・理学療法士等のドメイン専門家によるサニティチェックを推奨（06 §リスク
    まとめの「誤った指導リスク」対応）
