@@ -131,6 +131,40 @@ class ImmediateFeedbackResponse(BaseModel):
     created_at: datetime
 
 
+class ServeSessionCreateRequest(BaseModel):
+    upload_id: uuid.UUID
+    title: str
+
+
+class ServeSessionResponse(BaseModel):
+    id: uuid.UUID
+    title: str
+    status: str
+    failure_reason: dict | None
+    duration_s: float | None
+    created_at: datetime
+
+
+class ServeMetric(BaseModel):
+    id: str
+    phase: str
+    unit: str
+    measured: float | None
+    elite_range: list[float]
+    status: str
+    confidence: float
+    advice_key: str
+
+
+class ServeAnalysisResponse(BaseModel):
+    phases: dict
+    metrics: list[ServeMetric]
+    feedback_metrics: list[str]
+    confidence: dict
+    citation_status: str
+    created_at: datetime
+
+
 class ScorePointRequest(BaseModel):
     winner: str  # self | opponent
 

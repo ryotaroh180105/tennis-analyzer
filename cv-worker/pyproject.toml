@@ -8,6 +8,7 @@ dependencies = [
     "numpy>=2.0",
     "PyYAML>=6.0",
     "ffmpeg-python>=0.2.0",
+    "mediapipe>=0.10",
 ]
 
 [project.optional-dependencies]

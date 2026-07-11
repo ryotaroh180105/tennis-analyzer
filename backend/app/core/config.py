@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-opus-4-8"
 
+    # サーブ骨格解析（Phase 3。01 §Phase3 / 06-pro-reference-data.md）
+    pose_model_path: str = "/app/models/pose_landmarker.task"
+    pose_sample_hz: float = 30.0
+
 
 @lru_cache
 def get_settings() -> Settings:

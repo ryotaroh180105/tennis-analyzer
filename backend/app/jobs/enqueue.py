@@ -13,3 +13,7 @@ def enqueue_recut(match_id: str) -> None:
 
 def enqueue_highlight(match_id: str) -> None:
     celery_app.send_task("app.jobs.tasks.run_highlight", args=[match_id])
+
+
+def enqueue_serve_analyze(serve_session_id: str) -> None:
+    celery_app.send_task("app.jobs.tasks.run_serve_analyze", args=[serve_session_id])

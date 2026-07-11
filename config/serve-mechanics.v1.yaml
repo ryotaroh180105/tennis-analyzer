@@ -1,0 +1,74 @@
+# サーブメカニクス参照レンジ v1（Phase 3で使用）
+# 設計: docs/design/06-pro-reference-data.md §案1（バイオメカニクス文献の指標レンジをパラメータ化）
+# CLAUDE.md 不変原則1・2に準拠：しきい値はコードにハードコードせず、断定を避けるトーンで提示する。
+#
+# citation_status: この時点ではelite_rangeの数値は文献レビュー未完了の暫定値（placeholder）。
+# 実際のコーチング文脈で提示する前に、ITF Coaching & Sport Science Review等の一次文献で
+# 値を検証し、metrics[].source を具体的な出典に差し替えること。それまでUI/LLM側は
+# 「参考値（検証中）」の断り書きを必須で添える（06 §リスクまとめ: 誤った指導リスク対応）。
+version: 1
+citation_status: placeholder_pending_literature_review
+
+phases: [preparation, toss, trophy, acceleration, impact, follow_through]
+
+# ランドマークの平均visibilityがこれ未満の指標は測定不能＝unknownとして扱う
+# （断定より不明を優先。誤ったフォーム指摘のリスクを避ける）
+min_landmark_visibility: 0.6
+
+# レンジ逸脱の重要度ランキングでフィードバックする件数の上限（06 §比較アルゴリズム4）
+max_feedback_metrics: 3
+
+metrics:
+  - id: knee_flexion_at_trophy
+    phase: trophy
+    unit: deg
+    joint: [hip, knee, ankle]        # 角度算出に使う3関節（後ろ足＝踏み込み前の軸足）
+    elite_range: [95, 120]
+    tolerance: 8
+    advice_key: knee_bend
+    source: placeholder
+
+  - id: elbow_height_at_trophy
+    phase: trophy
+    unit: relative_shoulder          # 肩-腰間距離を1.0とした正規化値（カメラ距離に不変）
+    joint: [shoulder, elbow]
+    elite_range: [0.9, 1.15]
+    tolerance: 0.1
+    advice_key: trophy_elbow
+    source: placeholder
+
+  - id: shoulder_hip_separation_at_trophy
+    phase: trophy
+    unit: deg
+    joint: [shoulder_line, hip_line] # 肩ラインと腰ラインの回旋差（体幹の捻転）
+    elite_range: [20, 40]
+    tolerance: 8
+    advice_key: hip_shoulder_separation
+    source: placeholder
+
+  - id: elbow_extension_at_impact
+    phase: impact
+    unit: deg
+    joint: [shoulder, elbow, wrist]
+    elite_range: [160, 180]
+    tolerance: 10
+    advice_key: impact_extension
+    source: placeholder
+
+  - id: contact_height_relative
+    phase: impact
+    unit: relative_shoulder
+    joint: [shoulder, wrist]
+    elite_range: [1.3, 1.6]
+    tolerance: 0.15
+    advice_key: contact_height
+    source: placeholder
+
+  - id: toss_apex_to_impact_ms
+    phase: impact
+    unit: ms
+    joint: null                       # フェーズ間タイミングのみ、関節角度は使わない
+    elite_range: [350, 550]
+    tolerance: 80
+    advice_key: toss_timing
+    source: placeholder

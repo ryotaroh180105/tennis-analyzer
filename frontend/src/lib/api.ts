@@ -125,6 +125,16 @@ export const api = {
 
   // 即時フィードバック（07-advice-delivery.md §①。解析完了後に非同期生成される）
   getFeedback: (matchId: string) => apiFetch<FeedbackResponse>(`/api/matches/${matchId}/feedback`),
+
+  // サーブ骨格解析（Phase 3。01 §Phase3 / 06-pro-reference-data.md）
+  createServeSession: (uploadId: string, title: string) =>
+    apiFetch<ServeSession>("/api/serve-sessions", {
+      method: "POST",
+      body: JSON.stringify({ upload_id: uploadId, title }),
+    }),
+  listServeSessions: () => apiFetch<ServeSession[]>("/api/serve-sessions"),
+  getServeSession: (id: string) => apiFetch<ServeSession>(`/api/serve-sessions/${id}`),
+  getServeAnalysis: (id: string) => apiFetch<ServeAnalysisResult>(`/api/serve-sessions/${id}/analysis`),
 };
 
 export interface ScoreResponse {
@@ -167,6 +177,42 @@ export interface FeedbackResponse {
   created_at: string;
 }
 
+export type ServeSessionStatus = "queued" | "analyzing" | "done" | "failed";
+
+export interface ServeSession {
+  id: string;
+  title: string;
+  status: ServeSessionStatus;
+  failure_reason: { code: string; message: string } | null;
+  duration_s: number | null;
+  created_at: string;
+}
+
+export interface ServePhaseWindow {
+  start_s: number;
+  end_s: number;
+}
+
+export interface ServeMetric {
+  id: string;
+  phase: string;
+  unit: string;
+  measured: number | null;
+  elite_range: [number, number];
+  status: "in_range" | "borderline" | "out_of_range" | "unknown";
+  confidence: number;
+  advice_key: string;
+}
+
+export interface ServeAnalysisResult {
+  phases: Record<string, ServePhaseWindow | string> & { dominant_side?: string };
+  metrics: ServeMetric[];
+  feedback_metrics: string[];
+  confidence: { pose_detection_ratio: number };
+  citation_status: string;
+  created_at: string;
+}
+
 export const STATUS_LABEL_JA: Record<MatchStatus, string> = {
   queued: "動画を確認しています",
   prechecking: "動画を確認しています",
@@ -175,4 +221,36 @@ export const STATUS_LABEL_JA: Record<MatchStatus, string> = {
   editing: "編集しています（3/3）",
   done: "完了",
   failed: "解析できませんでした",
+};
+
+export const SERVE_STATUS_LABEL_JA: Record<ServeSessionStatus, string> = {
+  queued: "解析を待っています",
+  analyzing: "骨格を解析しています",
+  done: "完了",
+  failed: "解析できませんでした",
+};
+
+export const SERVE_PHASE_LABEL_JA: Record<string, string> = {
+  preparation: "構え",
+  toss: "トス",
+  trophy: "トロフィーポーズ",
+  acceleration: "加速",
+  impact: "インパクト",
+  follow_through: "フォロースルー",
+};
+
+export const SERVE_METRIC_LABEL_JA: Record<string, string> = {
+  knee_flexion_at_trophy: "トロフィーポーズの膝の曲がり",
+  elbow_height_at_trophy: "トロフィーポーズの肘の高さ",
+  shoulder_hip_separation_at_trophy: "肩と腰の捻転差",
+  elbow_extension_at_impact: "インパクト時の肘の伸び",
+  contact_height_relative: "打点の高さ",
+  toss_apex_to_impact_ms: "トスからインパクトまでの時間",
+};
+
+export const SERVE_METRIC_STATUS_LABEL_JA: Record<ServeMetric["status"], string> = {
+  in_range: "参考レンジ内",
+  borderline: "レンジにやや近い",
+  out_of_range: "参考レンジ外",
+  unknown: "測定不能（映り込み不足）",
 };

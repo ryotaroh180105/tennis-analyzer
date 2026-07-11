@@ -6,10 +6,19 @@ import { cancelPendingUpload, isOnWifi, uploadFile, type UploadProgress } from "
 
 interface UploadSheetProps {
   onClose: () => void;
-  onCreated: (matchId: string) => void;
+  onCreated: (id: string) => void;
+  createFn?: (uploadId: string, title: string) => Promise<{ id: string }>;
+  title?: string;
+  description?: string;
 }
 
-export function UploadSheet({ onClose, onCreated }: UploadSheetProps) {
+export function UploadSheet({
+  onClose,
+  onCreated,
+  createFn = api.createMatch,
+  title = "動画を追加",
+  description = "試合・練習動画をそのままアップロードしてください",
+}: UploadSheetProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [waitingForWifi, setWaitingForWifi] = useState(false);
@@ -20,8 +29,8 @@ export function UploadSheet({ onClose, onCreated }: UploadSheetProps) {
     setError(null);
     try {
       const uploadId = await uploadFile(f, setProgress);
-      const match = await api.createMatch(uploadId, f.name.replace(/\.[^.]+$/, ""));
-      onCreated(match.id);
+      const created = await createFn(uploadId, f.name.replace(/\.[^.]+$/, ""));
+      onCreated(created.id);
     } catch (e: any) {
       setError(e.message || "送信できませんでした");
     }
@@ -73,10 +82,8 @@ export function UploadSheet({ onClose, onCreated }: UploadSheetProps) {
 
         {!file && (
           <>
-            <p style={{ fontSize: 15, fontWeight: 700, margin: "0 0 4px" }}>動画を追加</p>
-            <p style={{ fontSize: 12, color: "var(--ink-secondary)", margin: "0 0 16px" }}>
-              試合・練習動画をそのままアップロードしてください
-            </p>
+            <p style={{ fontSize: 15, fontWeight: 700, margin: "0 0 4px" }}>{title}</p>
+            <p style={{ fontSize: 12, color: "var(--ink-secondary)", margin: "0 0 16px" }}>{description}</p>
             <input
               ref={inputRef}
               type="file"

@@ -25,6 +25,19 @@ export default function HomePage() {
         }}
       >
         <div style={{ fontSize: 17, fontWeight: 700 }}>試合</div>
+        <button
+          onClick={() => router.push("/serve")}
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: "var(--sand)",
+            background: "none",
+            border: "none",
+            padding: 0,
+          }}
+        >
+          サーブ解析 →
+        </button>
       </header>
 
       <main style={{ flex: 1, overflowY: "auto", padding: "4px 16px 100px", display: "flex", flexDirection: "column", gap: 10 }}>

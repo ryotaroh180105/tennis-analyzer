@@ -25,3 +25,10 @@ def load_segmentation_params(version: str = "v1") -> dict:
     path = CONFIG_DIR / f"segmentation.{version}.yaml"
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+@lru_cache
+def load_serve_mechanics(version: str = "v1") -> dict:
+    path = CONFIG_DIR / f"serve-mechanics.{version}.yaml"
+    with open(path, encoding="utf-8") as f:
+        return yaml.safe_load(f)

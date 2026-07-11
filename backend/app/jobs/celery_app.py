@@ -51,6 +51,7 @@ celery_app.conf.update(
         "app.jobs.tasks.run_weekly_digest_for_user": {"queue": "cpu"},
         "app.jobs.tasks.run_ingest": {"queue": "gpu"},
         "app.jobs.tasks.run_analyze": {"queue": "gpu"},
+        "app.jobs.tasks.run_serve_analyze": {"queue": "gpu"},
     },
     beat_schedule={
         "weekly-advice-digest": {

@@ -584,3 +584,63 @@ def run_weekly_digest_for_user(user_id: str) -> None:
         logger.exception("weekly digest generation failed for user %s", user_id)
     finally:
         db.close()
+
+
+@celery_app.task(name="app.jobs.tasks.run_serve_analyze")
+def run_serve_analyze(serve_session_id: str) -> None:
+    """サーブ骨格解析（Phase 3。01 §Phase3 / 06-pro-reference-data.md）。
+
+    Matchの4段パイプラインとは別の単発ジョブ（編集・ハイライト・スコアが不要なため）。
+    骨格が検出できない場合でもjob自体は失敗させず、全指標がunknownの結果を返す
+    （CLAUDE.md不変原則1）。
+    """
+    from cvpipeline.stages.stage6_pose import analyze_serve
+
+    from app.models.serve import ServeAnalysis, ServeSession, ServeSessionStatus
+
+    settings = get_settings()
+    db = SessionLocal()
+    session = None
+    try:
+        session = db.get(ServeSession, uuid.UUID(serve_session_id))
+        if session is None:
+            return
+
+        session.status = ServeSessionStatus.analyzing
+        db.commit()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            local_path = str(Path(tmpdir) / "original.mp4")
+            storage.download_to_file(session.original_r2_key, local_path)
+
+            from cvpipeline.video_io import ffprobe
+
+            meta = ffprobe(local_path)
+            if meta["duration_s"] <= 0:
+                session.status = ServeSessionStatus.failed
+                session.failure_reason = {"code": "input_invalid", "message": "unreadable or zero-duration video"}
+                db.commit()
+                _notify_failure(db, session, "動画を読み込めませんでした")
+                return
+
+            session.duration_s = meta["duration_s"]
+            result = analyze_serve(local_path, settings.pose_model_path, hz=settings.pose_sample_hz)
+
+        db.add(ServeAnalysis(serve_session_id=session.id, payload=result))
+        session.status = ServeSessionStatus.done
+        db.commit()
+
+        from app.models.user import User
+
+        user = db.get(User, session.user_id)
+        if user:
+            notify_user(user, f"「{session.title}」のサーブ解析が完了しました。アプリでご確認ください。")
+
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("serve analyze failed for %s", serve_session_id)
+        if session is not None:
+            session.status = ServeSessionStatus.failed
+            session.failure_reason = {"code": "analyze_error", "message": str(exc)}
+            db.commit()
+    finally:
+        db.close()
