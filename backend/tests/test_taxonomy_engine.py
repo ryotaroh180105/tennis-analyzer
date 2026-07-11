@@ -1,13 +1,101 @@
 """ミス分類ルールエンジンのユニットテスト（config/taxonomy.v1.yaml準拠）。"""
 
+import copy
+
 import pytest
 
-from app.services.taxonomy_engine import classify_point, evaluate_when, load_taxonomy
+from app.services.taxonomy_engine import _validate_taxonomy, classify_point, evaluate_when, load_taxonomy
 
 
 @pytest.fixture
 def taxonomy():
     return load_taxonomy()
+
+
+def _valid_taxonomy() -> dict:
+    return {
+        "dimensions": [
+            {
+                "id": "shot_type",
+                "source": "cv.shot.type",
+                "values": ["serve", "unknown"],
+                "labels": {"ja": {"serve": "サーブ", "unknown": "未分類"}},
+            },
+            {
+                "id": "pressure",
+                "source": "rule",
+                "values": ["forced", "unforced"],
+                "labels": {"ja": {"forced": "強制", "unforced": "非強制"}},
+                "rules": [
+                    {"value": "forced", "when": "shot.landing_depth > thresholds.forcing_depth"},
+                    {"value": "unforced", "when": "default"},
+                ],
+            },
+        ],
+        "thresholds": {"forcing_depth": 0.8, "rally_long": 9},
+        "labels": [{"match": {}, "label": {"ja": "その他"}}],
+        "tags": [
+            {"id": "weak_ball", "label": {"ja": "甘い球"}, "when": "shot.landing_depth < thresholds.forcing_depth"},
+            {
+                "id": "long_rally",
+                "label": {"ja": "ロングラリー"},
+                "scope": "point",
+                "when": "point.shot_count >= thresholds.rally_long",
+            },
+        ],
+    }
+
+
+def test_validate_taxonomy_accepts_well_formed_config():
+    _validate_taxonomy(_valid_taxonomy())  # raises on failure
+
+
+def test_validate_taxonomy_rejects_unknown_field_in_rule_when():
+    cfg = _valid_taxonomy()
+    cfg["dimensions"][1]["rules"][0]["when"] = "shot.landing_deptttth > thresholds.forcing_depth"
+    with pytest.raises(ValueError, match="unknown field"):
+        _validate_taxonomy(cfg)
+
+
+def test_validate_taxonomy_rejects_unknown_thresholds_key():
+    cfg = _valid_taxonomy()
+    cfg["tags"][0]["when"] = "shot.landing_depth < thresholds.does_not_exist"
+    with pytest.raises(ValueError, match="unknown thresholds key"):
+        _validate_taxonomy(cfg)
+
+
+def test_validate_taxonomy_rejects_missing_catch_all_label():
+    cfg = _valid_taxonomy()
+    cfg["labels"] = [{"match": {"shot_type": "serve"}, "label": {"ja": "サーブ"}}]
+    with pytest.raises(ValueError, match="catch-all"):
+        _validate_taxonomy(cfg)
+
+
+def test_validate_taxonomy_rejects_rule_dimension_without_default():
+    cfg = _valid_taxonomy()
+    cfg["dimensions"][1]["rules"] = [{"value": "forced", "when": "shot.landing_depth > thresholds.forcing_depth"}]
+    with pytest.raises(ValueError, match="default rule"):
+        _validate_taxonomy(cfg)
+
+
+def test_validate_taxonomy_rejects_incomplete_label_locale():
+    cfg = _valid_taxonomy()
+    cfg["dimensions"][0]["labels"]["ja"] = {"serve": "サーブ"}  # "unknown" キー欠落
+    with pytest.raises(ValueError, match="missing keys"):
+        _validate_taxonomy(cfg)
+
+
+def test_validate_taxonomy_rejects_label_match_unknown_value():
+    cfg = _valid_taxonomy()
+    cfg["labels"].insert(0, {"match": {"shot_type": "backhand"}, "label": {"ja": "バックハンド"}})
+    with pytest.raises(ValueError, match="unknown values"):
+        _validate_taxonomy(cfg)
+
+
+def test_load_taxonomy_real_config_is_deep_copyable():
+    # 実configがバリデータを通ること自体は load_taxonomy() 呼び出しで担保済み（fixture参照）。
+    # ここでは破壊的変更に対する回帰として、コピーしても検証結果が変わらないことを確認する。
+    _validate_taxonomy(copy.deepcopy(load_taxonomy()))
 
 
 def test_evaluate_when_default_is_always_true():

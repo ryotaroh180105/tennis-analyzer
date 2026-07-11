@@ -17,6 +17,19 @@ import math
 _SIMPLE_PARTS = {"shoulder", "elbow", "wrist", "hip", "knee", "ankle"}
 
 
+def is_valid_role(role: str) -> bool:
+    """'dominant_wrist' / 'nondominant_knee' のようなロール名の構文妥当性チェック
+    （config_validation.pyのロード時検証から使う。実ランドマーク解決はresolve_role）。
+    """
+    if role.startswith("dominant_"):
+        part = role[len("dominant_") :]
+    elif role.startswith("nondominant_"):
+        part = role[len("nondominant_") :]
+    else:
+        return False
+    return part in _SIMPLE_PARTS
+
+
 def resolve_role(role: str, dominant_side: str, joints: dict) -> dict | None:
     """'dominant_wrist' / 'nondominant_knee' 等のロール名を実ランドマークに解決する。"""
     if role.startswith("dominant_"):

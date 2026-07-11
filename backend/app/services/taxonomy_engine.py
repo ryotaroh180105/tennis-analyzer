@@ -25,7 +25,123 @@ CONFIG_DIR = Path(os.environ.get("CONFIG_DIR", "/app/config"))
 def load_taxonomy(version: str = "v1") -> dict:
     path = CONFIG_DIR / f"taxonomy.{version}.yaml"
     with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+    _validate_taxonomy(config)
+    return config
+
+
+# ---------------------------------------------------------------
+# ロード時スキーマ検証（不変原則1・2: 実在しない参照を実行時まで気付けないのを防ぐ）
+# ---------------------------------------------------------------
+
+# when式が参照できるフィールド。thresholds は値をNoneにして「taxonomy["thresholds"]に
+# 実在するキーか」を動的にチェックする（キー集合を静的に固定しない）。
+_PRESSURE_RULE_ALLOWED_FIELDS: dict[str, set[str] | None] = {
+    "prev_opponent_shot": {"landing_depth", "interval_s"},
+    "shot": {"type", "landing_depth"},
+    "thresholds": None,
+}
+_SHOT_TAG_ALLOWED_FIELDS: dict[str, set[str] | None] = {
+    "shot": {"landing_depth", "type"},
+    "thresholds": None,
+}
+_POINT_TAG_ALLOWED_FIELDS: dict[str, set[str] | None] = {
+    "point": {"shot_count"},
+    "thresholds": None,
+}
+
+
+def _dotted_path(node: ast.expr) -> tuple[str, ...] | None:
+    parts: list[str] = []
+    while isinstance(node, ast.Attribute):
+        parts.insert(0, node.attr)
+        node = node.value
+    if isinstance(node, ast.Name):
+        parts.insert(0, node.id)
+        return tuple(parts)
+    return None
+
+
+def _iter_operand_nodes(node: ast.AST):
+    """when式のグラマー上、識別子が出現しうる位置だけを辿る（Compareの左右・BoolOpの被演算子）。"""
+    if isinstance(node, ast.Expression):
+        yield from _iter_operand_nodes(node.body)
+    elif isinstance(node, ast.BoolOp):
+        for value in node.values:
+            yield from _iter_operand_nodes(value)
+    elif isinstance(node, ast.Compare):
+        yield node.left
+        yield node.comparators[0]
+    elif isinstance(node, (ast.Name, ast.Attribute)):
+        yield node
+
+
+def _validate_field_paths(expr: str, allowed: dict[str, set[str] | None], thresholds: dict, where: str) -> None:
+    if expr.strip() == "default":
+        return
+    tree = ast.parse(expr.strip(), mode="eval")
+    for operand in _iter_operand_nodes(tree):
+        path = _dotted_path(operand)
+        if path is None:
+            continue
+        root = path[0]
+        if root not in allowed:
+            raise ValueError(f"{where}: unknown field root {root!r} in when expression {expr!r}")
+        if root == "thresholds":
+            if len(path) != 2 or path[1] not in thresholds:
+                raise ValueError(f"{where}: unknown thresholds key in when expression {expr!r}")
+            continue
+        allowed_attrs = allowed[root]
+        if allowed_attrs is not None and (len(path) != 2 or path[1] not in allowed_attrs):
+            raise ValueError(f"{where}: unknown field {'.'.join(path)!r} in when expression {expr!r}")
+
+
+def _validate_taxonomy(config: dict) -> None:
+    for key in ("dimensions", "thresholds", "labels"):
+        if key not in config:
+            raise ValueError(f"taxonomy config missing required top-level key: {key!r}")
+
+    thresholds = config["thresholds"]
+    dim_ids: set[str] = set()
+    dim_values: dict[str, set[str]] = {}
+
+    for dim in config["dimensions"]:
+        did = dim["id"]
+        dim_ids.add(did)
+        values = set(dim.get("values", []))
+        dim_values[did] = values
+
+        for locale, mapping in dim.get("labels", {}).items():
+            missing = values - set(mapping.keys())
+            if missing:
+                raise ValueError(f"dimensions.{did}.labels[{locale}] missing keys for values: {sorted(missing)}")
+
+        if dim.get("source") == "rule":
+            rules = dim.get("rules", [])
+            if not rules or rules[-1].get("when") != "default":
+                raise ValueError(f"dimensions.{did}.rules must end with a default rule (when: default)")
+            for rule in rules:
+                _validate_field_paths(
+                    rule["when"], _PRESSURE_RULE_ALLOWED_FIELDS, thresholds, f"dimensions.{did}.rules"
+                )
+                if rule["value"] not in values and rule["when"] != "default":
+                    raise ValueError(f"dimensions.{did}.rules: rule value {rule['value']!r} not in declared values")
+
+    if not any(entry.get("match", {}) == {} for entry in config["labels"]):
+        raise ValueError("taxonomy config must declare a catch-all label (match: {})")
+
+    for entry in config["labels"]:
+        for key, val in entry.get("match", {}).items():
+            if key not in dim_ids:
+                raise ValueError(f"labels: match references unknown dimension {key!r}")
+            match_values = val if isinstance(val, list) else [val]
+            unknown = set(match_values) - dim_values[key]
+            if unknown:
+                raise ValueError(f"labels: match for {key!r} has unknown values: {sorted(unknown)}")
+
+    for tag in config.get("tags", []):
+        allowed = _POINT_TAG_ALLOWED_FIELDS if tag.get("scope") == "point" else _SHOT_TAG_ALLOWED_FIELDS
+        _validate_field_paths(tag["when"], allowed, thresholds, f"tags.{tag['id']}")
 
 
 # ---------------------------------------------------------------

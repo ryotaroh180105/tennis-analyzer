@@ -22,7 +22,9 @@ CONFIG_DIR = Path(os.environ.get("CONFIG_DIR", "/app/config"))
 def load_advice_rules(version: str = "v1") -> dict:
     path = CONFIG_DIR / f"advice-rules.{version}.yaml"
     with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+    _validate_advice_rules(config)
+    return config
 
 
 # ---------------------------------------------------------------
@@ -79,6 +81,92 @@ _COMPARE_OPS = {
     ast.Eq: operator.eq,
     ast.NotEq: operator.ne,
 }
+
+
+# ---------------------------------------------------------------
+# ロード時スキーマ検証（不変原則1: DSLのタイポは、実行時にevaluate_triggersが
+# ValueErrorを「未発火」として黙って握りつぶすため、ロード時に検出しないと
+# 気付かれないまま永久に発火しないトリガーになる）
+# ---------------------------------------------------------------
+
+
+def _validate_advice_when_syntax(expr: str, trigger_id: str) -> None:
+    """when式の静的な文法チェック（許可ノード種別・関数名・last_matchチェーンのみ）。
+
+    実データ（match_history）が無くても検証できる範囲に限定する。stat()/trend()等の
+    引数の意味的妥当性（shot_type名の実在性など）はここでは検証しない。
+
+    ast.walkではなく明示的な再帰にしているのは、Call.funcのNameノード（例: trend）が
+    ast.walkだと独立した被演算子として二重に訪問され、正当な関数名まで「未知の識別子」
+    として誤検出してしまうため（呼び出し対象と単独の識別子参照を区別する必要がある）。
+    """
+
+    def check(node: ast.AST) -> None:
+        if not isinstance(node, _ALLOWED_NODES):
+            raise ValueError(f"trigger {trigger_id!r}: disallowed expression node {type(node).__name__}")
+        if isinstance(node, ast.Expression):
+            check(node.body)
+        elif isinstance(node, ast.BoolOp):
+            for value in node.values:
+                check(value)
+        elif isinstance(node, ast.Compare):
+            check(node.left)
+            for comparator in node.comparators:
+                check(comparator)
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Attribute):
+                if not (isinstance(node.func.value, ast.Name) and node.func.value.id == "last_match"):
+                    raise ValueError(f"trigger {trigger_id!r}: unsupported method call target")
+            elif isinstance(node.func, ast.Name):
+                if node.func.id not in _ALLOWED_FUNCTIONS:
+                    raise ValueError(f"trigger {trigger_id!r}: disallowed function {node.func.id!r}")
+            else:
+                raise ValueError(f"trigger {trigger_id!r}: unsupported call expression")
+            for arg in node.args:
+                check(arg)
+            for kw in node.keywords:
+                check(kw.value)
+        elif isinstance(node, ast.Attribute):
+            root = node
+            while isinstance(root, ast.Attribute):
+                root = root.value
+            if not (isinstance(root, ast.Name) and root.id == "last_match"):
+                raise ValueError(f"trigger {trigger_id!r}: unknown identifier chain")
+        elif isinstance(node, ast.Name):
+            if node.id != "last_match":
+                raise ValueError(f"trigger {trigger_id!r}: unknown identifier {node.id!r}")
+        elif isinstance(node, ast.Constant):
+            pass
+        else:
+            raise ValueError(f"trigger {trigger_id!r}: unsupported expression node {type(node).__name__}")
+
+    check(ast.parse(expr.strip(), mode="eval"))
+
+
+def _validate_advice_rules(config: dict) -> None:
+    for key in ("triggers", "advice_templates"):
+        if key not in config:
+            raise ValueError(f"advice-rules config missing required top-level key: {key!r}")
+
+    default_locale = config.get("default_locale", "ja")
+    templates = config["advice_templates"].get(default_locale)
+    if templates is None:
+        raise ValueError(f"advice_templates missing default_locale {default_locale!r}")
+
+    required_keys = {"id", "when", "priority", "cooldown_days", "advice_template"}
+    seen_ids: set[str] = set()
+    for trigger in config["triggers"]:
+        missing = required_keys - trigger.keys()
+        if missing:
+            raise ValueError(f"trigger {trigger.get('id', '?')!r} missing keys: {sorted(missing)}")
+        if trigger["id"] in seen_ids:
+            raise ValueError(f"duplicate trigger id: {trigger['id']!r}")
+        seen_ids.add(trigger["id"])
+        if trigger["advice_template"] not in templates:
+            raise ValueError(
+                f"trigger {trigger['id']!r} references unknown advice_template {trigger['advice_template']!r}"
+            )
+        _validate_advice_when_syntax(trigger["when"], trigger["id"])
 
 
 class AdviceEvalContext:

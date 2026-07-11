@@ -31,4 +31,8 @@ def load_segmentation_params(version: str = "v1") -> dict:
 def load_shot_mechanics(version: str = "v1") -> dict:
     path = CONFIG_DIR / f"shot-mechanics.{version}.yaml"
     with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+    from cvpipeline.pose.config_validation import validate_shot_mechanics
+
+    validate_shot_mechanics(config)
+    return config

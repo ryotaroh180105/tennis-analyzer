@@ -4,10 +4,41 @@ import pytest
 
 from app.services.advice_engine import (
     AdviceEvalContext,
+    _validate_advice_rules,
     evaluate_triggers,
     evaluate_when,
     load_advice_rules,
 )
+
+
+def _valid_rules() -> dict:
+    return {
+        "default_locale": "ja",
+        "triggers": [
+            {
+                "id": "t1",
+                "when": "trend(stat('backhand', 'unforced_error_rate'), matches=3) > 0.05",
+                "priority": 80,
+                "cooldown_days": 14,
+                "advice_template": "backhand_consistency",
+            },
+            {
+                "id": "t2",
+                "when": "last_match.serve_fault_rate > 0.4 and avg('serve_fault_rate', matches=5) < 0.35",
+                "priority": 85,
+                "cooldown_days": 7,
+                "advice_template": "backhand_consistency",
+            },
+            {
+                "id": "t3",
+                "when": "last_match.loss_rate_by_rally('1-4') > 0.65",
+                "priority": 60,
+                "cooldown_days": 21,
+                "advice_template": "backhand_consistency",
+            },
+        ],
+        "advice_templates": {"ja": {"backhand_consistency": {"theme": "x"}}},
+    }
 
 
 @pytest.fixture
@@ -139,3 +170,56 @@ def test_fired_triggers_sorted_by_priority_descending(rules):
 
 def test_empty_match_history_fires_nothing(rules):
     assert evaluate_triggers([], rules=rules) == []
+
+
+def test_validate_advice_rules_accepts_well_formed_config():
+    _validate_advice_rules(_valid_rules())  # raises on failure
+
+
+def test_validate_advice_rules_rejects_typo_in_function_name():
+    cfg = _valid_rules()
+    cfg["triggers"][0]["when"] = "trennd(stat('backhand', 'unforced_error_rate'), matches=3) > 0.05"
+    with pytest.raises(ValueError, match="disallowed function"):
+        _validate_advice_rules(cfg)
+
+
+def test_validate_advice_rules_rejects_typo_in_bare_identifier():
+    cfg = _valid_rules()
+    cfg["triggers"][0]["when"] = "lastmatch.serve_fault_rate > 0.4"
+    with pytest.raises(ValueError, match="unknown identifier"):
+        _validate_advice_rules(cfg)
+
+
+def test_validate_advice_rules_rejects_disallowed_function():
+    cfg = _valid_rules()
+    cfg["triggers"][0]["when"] = "__import__('os').system('x') > 0"
+    with pytest.raises(ValueError):
+        _validate_advice_rules(cfg)
+
+
+def test_validate_advice_rules_rejects_unknown_advice_template():
+    cfg = _valid_rules()
+    cfg["triggers"][0]["advice_template"] = "does_not_exist"
+    with pytest.raises(ValueError, match="unknown advice_template"):
+        _validate_advice_rules(cfg)
+
+
+def test_validate_advice_rules_rejects_missing_default_locale_templates():
+    cfg = _valid_rules()
+    cfg["default_locale"] = "en"
+    with pytest.raises(ValueError, match="default_locale"):
+        _validate_advice_rules(cfg)
+
+
+def test_validate_advice_rules_rejects_duplicate_trigger_id():
+    cfg = _valid_rules()
+    cfg["triggers"].append(dict(cfg["triggers"][0]))
+    with pytest.raises(ValueError, match="duplicate trigger id"):
+        _validate_advice_rules(cfg)
+
+
+def test_validate_advice_rules_rejects_missing_required_key():
+    cfg = _valid_rules()
+    del cfg["triggers"][0]["cooldown_days"]
+    with pytest.raises(ValueError, match="missing keys"):
+        _validate_advice_rules(cfg)
