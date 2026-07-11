@@ -22,7 +22,7 @@
 統計レンジが公開されている。これを**「参照レンジ」としてYAML化**する。
 
 ```yaml
-# reference/serve-mechanics.v1.yaml（Phase 3で整備）
+# config/shot-mechanics.v1.yaml（Phase 3。旧 serve-mechanics.v1.yaml を統合・置換）
 phases: [preparation, toss, trophy, acceleration, impact, follow_through]
 metrics:
   - id: knee_flexion_at_trophy
@@ -70,7 +70,7 @@ metrics:
 
 1. MediaPipe Poseで骨格系列を抽出（60fps、斜め後方アングル）
 2. サーブをフェーズ分割（トス開始・トロフィー・インパクトのキーイベント検出）
-3. フェーズごとに `serve-mechanics.v1.yaml` の指標を算出
+3. フェーズごとに `shot-mechanics.v1.yaml`（旧 serve-mechanics.v1.yaml を統合）の指標を算出
    - カメラ距離・体格に不変な**正規化指標**（角度、体節長比、タイミング比）のみ使う
 4. レンジ逸脱を重要度順にランキング → 上位2〜3件だけをフィードバック
    （全部指摘しない。行動変容につながる数に絞る）

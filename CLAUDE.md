@@ -50,8 +50,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   「どう言うか」はClaude APIという分業。DSL定義はファイル冒頭コメントが正。
 - `segmentation.v1.yaml`（Phase 0で新設） — 区間判定しきい値。しきい値のコード内定数は禁止。
 - `shot-mechanics.v1.yaml`（Phase 3） — ショット別フォーム解析の参照レンジ・スイング分割
-  しきい値。指標は計算プリミティブ（コード側6個）×YAML宣言の分離。`serve-mechanics.v1.yaml`
-  はこのファイルに統合済みで廃止予定（stage6のローダー切替コミットで削除）。
+  しきい値。指標は計算プリミティブ（コード側の少数の純粋関数・現状7個。正確な一覧は
+  `12-form-analysis.md` のプリミティブ表が正）×YAML宣言の分離。`serve-mechanics.v1.yaml`
+  はこのファイルに統合済み・configから削除済み（旧参照が残る箇所は随時修正）。
+  数値レンジの裏付けが無く方向性のみ文献にある指標は、`elite_range` の代わりに
+  `expected_sign`（符号のみの定性評価）を使う。全configはロード時スキーマ検証
+  （実在しない参照・catch-all/default欠落・排他キーの同時指定を拒否）を通す前提。
 - 全ファイルともバージョン付きリソースとして扱い、破壊的変更は新バージョンファイルを追加する。
 - コート寸法・ライン定義は `court-spec.yaml` に外出しする（コードへのハードコード禁止。
   他ラケットスポーツ展開時の改修範囲を限定するため）。

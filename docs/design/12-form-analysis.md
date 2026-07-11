@@ -80,14 +80,15 @@ Phase 3のフォーム解析を**サーブ専用から主要ショット全種�
 不変原則2（カテゴリ追加はYAML編集のみで完結）を満たしていない。拡張にあわせて
 **少数の計算プリミティブ（コード）と指標定義（YAML）に分離**する。
 
-プリミティブ（v1で6個。これ以上は必要になるまで足さない）：
+プリミティブ（v1で7個。これ以上は必要になるまで足さない）：
 
 | primitive | 意味 | args |
 |---|---|---|
 | `joint_angle` | 3関節のなす角（度） | `points: [a, b, c]`（bが頂点） |
 | `relative_height` | 基準点からの高さ / 体幹長 | `point`, `ref`, 体幹長=利き肩-利き腰 |
 | `forward_of_body` | 骨盤前面からの前方距離 / 体幹長 | `point` |
-| `line_separation` | 2つの体節ライン（肩・腰）の回旋差（度） | `lines: [shoulder_line, hip_line]` |
+| `line_separation` | 2つの体節ライン（肩・腰）の回旋差の**絶対値**（度） | `lines: [shoulder_line, hip_line]` |
+| `line_separation_signed` | 同・**符号付き**（回旋の向き。定性評価 `expected_sign` 専用） | `lines: [shoulder_line, hip_line]` |
 | `event_interval` | 2キーイベント間の時間（ms） | `from_event`, `to_event` |
 | `angle_delta` | 2キーイベント間での関節角度変化量（度） | `points`, `from_event`, `to_event` |
 
@@ -95,6 +96,28 @@ Phase 3のフォーム解析を**サーブ専用から主要ショット全種�
   ハンドネス解決はエンジン側で行う。
 - 実在しないロール名・イベント名を参照する指標はロード時のスキーマ検証で拒否する
   （taxonomyの「存在しない参照はスキーマ検証で拒否」と同じ規約）。
+
+### 評価モードと符号の規約（2026-07-11 設計レビューで確定）
+
+指標は以下の2モードのいずれか。同一指標で併用は不可（ロード時検証で排他を担保）：
+
+1. **定量（`elite_range` + `tolerance`）** — 中央値がレンジ内なら `in_range`、
+   tolerance込みで `borderline`、外なら `out_of_range`。
+2. **定性（`expected_sign: positive|negative`）** — 数値レンジの裏付けが無く方向性
+   のみ文献にある場合。中央値の符号が一致すれば `in_range`、逆なら `out_of_range`。
+
+**符号の利き手正規化（不変原則1）**：`line_separation_signed` は他のロール解決と
+同じく**利き手基準で符号を正規化する**（`dominant_side` を使い、右利き・左利きで
+同じフォームが同符号になるようにする）。YAML の `expected_sign` は利き手非依存の
+固定値で書く。これを怠ると左利きプレーヤーの正しいフォームを `out_of_range` と
+誤断定し、原則1（誤った断定より未分類）に違反する。
+
+**測定値のみモード（`source: placeholder` / 文献未確認の指標）**：レンジもsignも
+文献裏付けが無い指標は、推測レンジで in/out 判定してコーチングに載せてはならない
+（12 §ロールアウト3d「smash/volleyはレンジ比較を出さず測定値のみ表示」）。
+評価器は当該指標を `status: measured`（比較なし）として扱い、注目ポイント生成の
+対象外にする。configでの表現は「`elite_range`/`expected_sign` をどちらも持たない」
+ことで判別する（＝placeholderの数値を書かない）。
 
 ## 設定ファイル：shot-mechanics.v1.yaml（serve-mechanics.v1.yaml を統合・置換）
 
