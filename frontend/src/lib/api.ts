@@ -216,11 +216,23 @@ export interface FormMetric {
   advice_key: string;
 }
 
+export interface SwingMetricValue {
+  id: string;
+  value: number | null;
+  confidence: number;
+}
+
+export interface Swing {
+  t: number;
+  metrics: Record<string, SwingMetricValue>;
+}
+
 export interface FormAnalysisResult {
   shot_type: FormShotType;
   dominant_side: string;
   swing_count: number;
   insufficient_data: boolean;
+  swings: Swing[];
   metrics: FormMetric[];
   feedback_metrics: string[];
   confidence: { pose_detection_ratio: number };

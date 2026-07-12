@@ -11,6 +11,7 @@ import {
   FORM_STATUS_LABEL_JA,
   type FormMetric,
 } from "@/lib/api";
+import { SwingStrip } from "@/components/SwingStrip";
 
 const STATUS_COLOR: Record<FormMetric["status"], string> = {
   in_range: "var(--court)",
@@ -113,6 +114,8 @@ export default function FormDetailPage() {
             {analysis.citation_status === "placeholder_pending_literature_review" &&
               " レンジ自体は現在検証中の参考値です。"}
           </div>
+
+          <SwingStrip swings={analysis.swings} metrics={analysis.metrics} />
 
           {analysis.feedback_metrics.length > 0 && (
             <div style={{ marginBottom: 16 }}>

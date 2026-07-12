@@ -128,6 +128,7 @@ def get_form_analysis(
         dominant_side=payload["dominant_side"],
         swing_count=payload["swing_count"],
         insufficient_data=payload["insufficient_data"],
+        swings=payload["swings"],
         metrics=payload["metrics"],
         feedback_metrics=payload["feedback_metrics"],
         confidence=payload["confidence"],

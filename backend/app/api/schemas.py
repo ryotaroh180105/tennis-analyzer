@@ -164,11 +164,23 @@ class FormMetric(BaseModel):
     advice_key: str
 
 
+class SwingMetricValue(BaseModel):
+    id: str
+    value: float | None
+    confidence: float
+
+
+class Swing(BaseModel):
+    t: float
+    metrics: dict[str, SwingMetricValue]
+
+
 class FormAnalysisResponse(BaseModel):
     shot_type: str
     dominant_side: str
     swing_count: int
     insufficient_data: bool
+    swings: list[Swing]
     metrics: list[FormMetric]
     feedback_metrics: list[str]
     confidence: dict

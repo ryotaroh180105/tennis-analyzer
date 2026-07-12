@@ -74,3 +74,54 @@ def test_form_session_not_found_returns_404(client):
     resp = client.get("/api/form-sessions/00000000-0000-0000-0000-000000000000")
     assert resp.status_code == 404
     assert resp.json()["error"]["code"] == "not_found"
+
+
+def test_form_analysis_response_includes_per_swing_data(client):
+    # 13 E'-swing-strip: FormAnalysisResponseはswingsを含む（フォーム解析詳細ページの
+    # スイング一覧ストリップが個々のスイングの完全性・外れ値を可視化するために必要）
+    from app.core.db import SessionLocal
+    from app.models.form import FormAnalysis
+
+    upload_id = _completed_upload(client)
+    resp = client.post(
+        "/api/form-sessions", json={"upload_id": upload_id, "title": "スイング確認", "shot_type": "forehand"}
+    )
+    session_id = resp.json()["id"]
+
+    payload = {
+        "shot_type": "forehand",
+        "dominant_side": "right",
+        "swing_count": 2,
+        "insufficient_data": False,
+        "swings": [
+            {
+                "t": 1.2,
+                "metrics": {
+                    "elbow_angle_at_contact": {"id": "elbow_angle_at_contact", "value": 120.0, "confidence": 0.9}
+                },
+            },
+            {
+                "t": 5.6,
+                "metrics": {
+                    "elbow_angle_at_contact": {"id": "elbow_angle_at_contact", "value": None, "confidence": 0.0}
+                },
+            },
+        ],
+        "metrics": [],
+        "feedback_metrics": [],
+        "confidence": {"pose_detection_ratio": 0.8},
+        "citation_status": "placeholder_pending_literature_review",
+    }
+
+    db = SessionLocal()
+    db.add(FormAnalysis(form_session_id=session_id, payload=payload))
+    db.commit()
+    db.close()
+
+    resp = client.get(f"/api/form-sessions/{session_id}/analysis")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["swings"]) == 2
+    assert body["swings"][0]["t"] == 1.2
+    assert body["swings"][0]["metrics"]["elbow_angle_at_contact"]["value"] == 120.0
+    assert body["swings"][1]["metrics"]["elbow_angle_at_contact"]["value"] is None
