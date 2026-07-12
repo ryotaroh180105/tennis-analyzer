@@ -16,7 +16,12 @@ def compute_effective(rows: list[Segment]) -> list[dict]:
     ordered = sorted(rows, key=lambda r: (r.revision, r.created_at))
     for row in ordered:
         if row.op == SegmentOp.add:
-            entries[row.id] = {"start_s": row.start_s, "end_s": row.end_s, "alive": True}
+            entries[row.id] = {
+                "start_s": row.start_s,
+                "end_s": row.end_s,
+                "confidence": row.confidence,
+                "alive": True,
+            }
         elif row.op == SegmentOp.remove:
             if row.base_segment_id in entries:
                 entries[row.base_segment_id]["alive"] = False
@@ -24,9 +29,14 @@ def compute_effective(rows: list[Segment]) -> list[dict]:
             if row.base_segment_id in entries:
                 entries[row.base_segment_id]["start_s"] = row.start_s
                 entries[row.base_segment_id]["end_s"] = row.end_s
+                # ユーザーが境界を直接指定した時点でCV検出固有の「低信頼」シグナルは
+                # 意味を失う（不変原則1: 人間が確認・修正した区間を誤って低信頼表示しない）
+                entries[row.base_segment_id]["confidence"] = None
 
     effective = [
-        {"start_s": e["start_s"], "end_s": e["end_s"]} for e in entries.values() if e["alive"]
+        {"start_s": e["start_s"], "end_s": e["end_s"], "confidence": e["confidence"]}
+        for e in entries.values()
+        if e["alive"]
     ]
     effective.sort(key=lambda s: s["start_s"])
     return effective

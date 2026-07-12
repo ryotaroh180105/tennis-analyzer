@@ -296,6 +296,12 @@ def classify_point(point: dict, taxonomy: dict) -> dict:
             outcome, outcome_conf = _gated(
                 shot["terminal"].get("type"), shot["terminal"].get("confidence", 0.0), outcome_dim.get("min_confidence")
             )
+            # winnerは「誤った断定」の被害が最も大きい判定（04）のため、outcome共通の
+            # min_confidenceに加えて、より厳格なwinner_min_confidenceを追加適用する
+            # （不変原則1）。旧実装はこのしきい値をロードするだけで一度も参照していなかった。
+            winner_min_confidence = thresholds.get("winner_min_confidence")
+            if outcome == "winner" and winner_min_confidence is not None and outcome_conf < winner_min_confidence:
+                outcome = "unknown"
         else:
             outcome, outcome_conf = "in_play", 1.0
 

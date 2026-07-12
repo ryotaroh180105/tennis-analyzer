@@ -55,10 +55,20 @@ def analyze_landmarks(
     insufficient_data = len(swings) < config["swing_detection"]["min_valid_swings"]
 
     def _severity(m: dict) -> float:
-        # 定性指標（elite_rangeなし）は数値距離を持たないため、優先度は最下位固定にする
+        """注目ポイント選定の優先度（大きいほど優先）。レンジ幅で正規化した「レンジ幅
+        何個分はみ出しているか」を単位に、定量・定性の指標を横断比較できるようにする。
+
+        定性指標（elite_rangeなし）はレンジ幅を持たないため「ちょうどレンジ幅1つ分
+        はみ出している」相当の固定値(1.0)を与える。旧実装は定性指標を常に0.0固定
+        （＝優先度最下位）にしており、実在するフォーム欠陥が数値指標に押し出されて
+        注目ポイントに一切出ない問題があった（不変原則1、設計レビュー13 B-4）。
+        """
         if m["elite_range"] is None:
-            return 0.0
-        return max(m["elite_range"][0] - m["measured"], m["measured"] - m["elite_range"][1], 0.0)
+            return 1.0
+        lo, hi = m["elite_range"]
+        width = max(hi - lo, 1e-9)
+        excess = max(lo - m["measured"], m["measured"] - hi, 0.0)
+        return excess / width
 
     feedback_metrics = []
     if not insufficient_data:

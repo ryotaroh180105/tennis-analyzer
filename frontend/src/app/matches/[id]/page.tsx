@@ -3,12 +3,38 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import useSWR from "swr";
-import { api, STATUS_LABEL_JA } from "@/lib/api";
+import { api, LOW_CONFIDENCE_THRESHOLD, STATUS_LABEL_JA } from "@/lib/api";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
 import { Ribbon } from "@/components/Ribbon";
 import { ScorePad } from "@/components/ScorePad";
 import { StatsPanel } from "@/components/StatsPanel";
 import { VideoPlayer } from "@/components/VideoPlayer";
+
+function DegradedBanner() {
+  // 11 §3: 縮退モード時のインフォバー。エラー色にしない（sand系）。
+  // 完了ビューでも表示し続ける（13 B-3: 旧実装は処理中ビューでのみ表示され、
+  // 結果を見て「区間を直すべきか」判断する完了ビューの場面で文脈が消えていた）。
+  return (
+    <div
+      style={{
+        margin: "4px 16px 0",
+        padding: "10px 12px",
+        background: "var(--sand-soft)",
+        borderRadius: 10,
+        fontSize: 11,
+        lineHeight: 1.5,
+        display: "flex",
+        gap: 8,
+      }}
+    >
+      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sand)", marginTop: 4, flexShrink: 0 }} />
+      <div>
+        コートを見つけられなかったため、動きだけで区間を判定しています。
+        精度が低い場合は区間を直してください。
+      </div>
+    </div>
+  );
+}
 
 function estimateRemainingMs(createdAt: string, pct: number): number | null {
   if (pct <= 0) return null;
@@ -154,26 +180,7 @@ export default function MatchDetailPage() {
             </div>
           </div>
 
-          {match.preflight_report?.degraded && (
-            <div
-              style={{
-                margin: "4px 16px 0",
-                padding: "10px 12px",
-                background: "var(--sand-soft)",
-                borderRadius: 10,
-                fontSize: 11,
-                lineHeight: 1.5,
-                display: "flex",
-                gap: 8,
-              }}
-            >
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sand)", marginTop: 4, flexShrink: 0 }} />
-              <div>
-                コートを見つけられなかったため、動きだけで区間を判定しています。
-                精度が低い場合は区間を直してください。
-              </div>
-            </div>
-          )}
+          {match.preflight_report?.degraded && <DegradedBanner />}
 
           {!match.self_side && (
             <div style={{ margin: "10px 16px 0", padding: "12px", background: "var(--court-soft)", borderRadius: 10 }}>
@@ -209,6 +216,8 @@ export default function MatchDetailPage() {
             <VideoPlayer playlistUrl={playback.playlist_url} thumbnailUrl={playback.thumbnail_url} />
           </div>
 
+          {match.preflight_report?.degraded && <DegradedBanner />}
+
           {normalizedAsset?.duration_s != null && editedAsset?.duration_s != null && (
             <div style={{ padding: "10px 16px 4px" }}>
               <div style={{ fontSize: 11, color: "var(--ink-secondary)" }}>保存された時間</div>
@@ -226,7 +235,13 @@ export default function MatchDetailPage() {
               <div style={{ fontSize: 10, color: "var(--ink-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
                 プレー区間
               </div>
-              <Ribbon durationS={normalizedAsset.duration_s} segments={segments.effective} />
+              <Ribbon
+                durationS={normalizedAsset.duration_s}
+                segments={segments.effective.map((s) => ({
+                  ...s,
+                  lowConfidence: s.confidence != null && s.confidence < LOW_CONFIDENCE_THRESHOLD,
+                }))}
+              />
             </div>
           )}
 

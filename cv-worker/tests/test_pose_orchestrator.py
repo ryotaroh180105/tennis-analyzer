@@ -97,6 +97,63 @@ def _custom_config():
     }
 
 
+def _severity_test_config(max_feedback_metrics: int):
+    return {
+        "citation_status": "test",
+        "defaults": {"min_landmark_visibility": 0.6, "max_feedback_metrics": max_feedback_metrics},
+        "swing_detection": {
+            "min_peak_speed_mps": 3.0,
+            "min_interval_s": 1.0,
+            "window_pre_s": 0.5,
+            "window_post_s": 0.5,
+            "min_valid_swings": 3,
+        },
+        "shots": {
+            "forehand": {
+                "detector": "groundstroke",
+                "metrics": [
+                    # 実測値は約110.26度で、このelite_rangeに対する正規化severityは
+                    # 約0.28（(130-110.26)/70）
+                    {
+                        "id": "elbow_angle_at_contact",
+                        "at": "contact",
+                        "primitive": "joint_angle",
+                        "args": {"points": ["dominant_shoulder", "dominant_elbow", "dominant_wrist"]},
+                        "unit": "deg",
+                        "elite_range": [130, 200],
+                        "tolerance": 5,
+                        "advice_key": "arm_structure",
+                    },
+                    # 実測値は0.0（このconfigの合成データでは肩・腰とも無回旋）で
+                    # expected_sign=positiveと不一致 → out_of_range、定性のためseverity=1.0固定
+                    {
+                        "id": "separation_direction",
+                        "at": "contact",
+                        "primitive": "line_separation_signed",
+                        "args": {"lines": ["shoulder_line", "hip_line"]},
+                        "unit": "deg",
+                        "expected_sign": "positive",
+                        "advice_key": "unit_turn",
+                    },
+                ],
+            }
+        },
+    }
+
+
+def test_qualitative_out_of_range_can_win_a_feedback_slot_over_quantitative():
+    # 13 B-4: 定性out_of_rangeが常にseverity=0固定（優先度最下位）だった旧実装では、
+    # このケースでelbow_angle_at_contactが選ばれてしまい、実在するフォーム欠陥
+    # （分離角の向きの誤り）が注目ポイントに一切出なかった。正規化後は定性側が勝つ。
+    series = _forehand_series(n_swings=3, gap_s=4.0)
+    result = analyze_landmarks(series, "forehand", config=_severity_test_config(max_feedback_metrics=1))
+
+    by_id = {m["id"]: m for m in result["metrics"]}
+    assert by_id["elbow_angle_at_contact"]["status"] == "out_of_range"
+    assert by_id["separation_direction"]["status"] == "out_of_range"
+    assert result["feedback_metrics"] == ["separation_direction"]
+
+
 def test_analyze_landmarks_insufficient_data_below_min_swings():
     series = _forehand_series(n_swings=1)
     result = analyze_landmarks(series, "forehand", config=_custom_config())

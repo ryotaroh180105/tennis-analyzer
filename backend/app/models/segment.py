@@ -41,4 +41,8 @@ class Segment(Base):
     start_s: Mapped[float | None] = mapped_column(Float, nullable=True)
     end_s: Mapped[float | None] = mapped_column(Float, nullable=True)
     source: Mapped[SegmentSource] = mapped_column(SAEnum(SegmentSource, name="segment_source"))
+    # CV自動検出(op=add, source=auto)の信頼度（stage4_segments.py参照）。
+    # ユーザー編集(source=user)はNoneのまま（「低信頼」はCV検出固有のシグナルであり、
+    # ユーザーが直接指定した区間には適用されない。11 §低信頼可視化、13 B-2）。
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

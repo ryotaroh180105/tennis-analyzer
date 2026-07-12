@@ -28,7 +28,12 @@ export interface Match {
 export interface SegmentEffective {
   start_s: number;
   end_s: number;
+  confidence: number | null;
 }
+
+// 11 §58: confidence < 0.7 は低信頼（彩度低下＋波線ハンドル、Ribbon.tsx）。
+// ユーザーが直接編集した区間はconfidence=nullで低信頼扱いにしない。
+export const LOW_CONFIDENCE_THRESHOLD = 0.7;
 
 export interface SegmentsResponse {
   revision: number;

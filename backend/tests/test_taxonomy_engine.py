@@ -182,3 +182,34 @@ def test_high_confidence_synthetic_winner_matches_winner_label(taxonomy):
     assert last["outcome"] == "winner"
     assert last["label"]["ja"] == "ウィナー"
     assert last["highlight"] is True
+
+
+def test_winner_below_winner_min_confidence_falls_to_unknown(taxonomy):
+    # outcome共通のmin_confidence(0.6)は満たすが、winner_min_confidence(0.75)未満
+    # （13 B-1: 誤ウィナー断定は信頼を最も損なうため、outcome=winnerのみ追加で厳格化）
+    winner_min_confidence = taxonomy["thresholds"]["winner_min_confidence"]
+    outcome_min_confidence = next(d for d in taxonomy["dimensions"] if d["id"] == "outcome")["min_confidence"]
+    between = (outcome_min_confidence + winner_min_confidence) / 2
+    shots = [
+        {"index": 0, "type": "serve", "type_confidence": 1.0},
+        {"index": 1, "type": "forehand", "type_confidence": 0.9, "terminal": {"type": "winner", "confidence": between}},
+    ]
+    result = classify_point(_point(shots), taxonomy)
+    last = result["shots"][-1]
+    assert last["outcome"] == "unknown"
+    assert last["label"]["ja"] == "未分類ポイント"
+
+
+def test_winner_at_or_above_winner_min_confidence_stays_winner(taxonomy):
+    winner_min_confidence = taxonomy["thresholds"]["winner_min_confidence"]
+    shots = [
+        {"index": 0, "type": "serve", "type_confidence": 1.0},
+        {
+            "index": 1,
+            "type": "forehand",
+            "type_confidence": 0.9,
+            "terminal": {"type": "winner", "confidence": winner_min_confidence},
+        },
+    ]
+    result = classify_point(_point(shots), taxonomy)
+    assert result["shots"][-1]["outcome"] == "winner"

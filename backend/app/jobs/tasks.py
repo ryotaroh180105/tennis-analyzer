@@ -247,6 +247,7 @@ def run_analyze(match_id: str) -> None:
                     start_s=seg["start_s"],
                     end_s=seg["end_s"],
                     source=SegmentSource.auto,
+                    confidence=seg.get("confidence"),
                 )
             )
         db.commit()

@@ -72,6 +72,7 @@ class SegmentRaw(BaseModel):
 class SegmentEffective(BaseModel):
     start_s: float
     end_s: float
+    confidence: float | None = None
 
 
 class SegmentsResponse(BaseModel):
