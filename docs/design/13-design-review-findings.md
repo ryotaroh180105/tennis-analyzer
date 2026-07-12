@@ -75,13 +75,16 @@
 - **C-3 GPUディスパッチャ未実装・廃止予定のCelery gpuキューで代替** — `celery_app.py:52-54`,
   `docker-compose.yml:134-156`。00決定7「サーバーレスGPU・常駐なし」と矛盾。本番切替時に手戻り。
 
-## D. 「初日から」取るべき原価データが取れていない（後から遡れない）`[実装]`
+## D. 「初日から」取るべき原価データが取れていない（後から遡れない）`[実装済み]`
 
-- **D-1 ステージ別GPU秒を記録していない** — `tasks.py:254-258` は `{"stage1_4_s"}` の単一値のみ。
-  08:38 が要求する stage別内訳（オンデバイス移行判断の入力）が欠ける。
-- **D-2 `gpu_seconds` にI/O待ち(DL/UL)を混入** — `tasks.py:190-195`。breakdownは `encode_s` のみ。
-  08:91「DL/エンコード/UL分計」未達で原価が過大計上。契約キー（10:87-88 の
-  `{download_s, encode_s, stage1_s..stage4_s, upload_s}`）を満たすよう分計する。
+- **D-1 ステージ別GPU秒を記録していない** — 解消。`cvpipeline/pipeline.py`の`run_analyze`が
+  各ステージ（court/players/ball/segments/shots）をtime.monotonic()で計測し
+  `stage_seconds: {stage1_s..stage5_s}`を返す。`tasks.py`のrun_analyzeジョブがこれを
+  breakdownにそのまま展開する。
+- **D-2 `gpu_seconds` にI/O待ち(DL/UL)を混入** — 解消。`run_ingest`/`run_analyze`とも
+  download_s/upload_sを個別に計測し、`gpu_seconds`はGPU/CPU計算コスト（encode_sまたは
+  stage_secondsの合計）のみを表すよう変更。契約キー（10:87-88の
+  `{download_s, encode_s, stage1_s..stage4_s, upload_s}`）を満たす（stage5_sは追加の拡張キー）。
 
 ---
 

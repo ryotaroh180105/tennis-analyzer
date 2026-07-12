@@ -45,6 +45,10 @@ def test_analyze_produces_segments_within_video_bounds(tmp_path, synthetic_video
     for seg in result["segments"]:
         assert 0.0 <= seg["start_s"] < seg["end_s"] <= 20.0  # 動画長を超えない（実機検証で修正した回帰）
 
+    # 13 D-1: ステージ別GPU秒の原価計測に使うstage_secondsが揃っていること
+    assert set(result["stage_seconds"].keys()) == {"stage1_s", "stage2_s", "stage3_s", "stage4_s", "stage5_s"}
+    assert all(v >= 0 for v in result["stage_seconds"].values())
+
 
 def test_full_pipeline_including_edit_and_hls(tmp_path, synthetic_video):
     from cvpipeline.ingest import normalize

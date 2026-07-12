@@ -160,7 +160,10 @@ def run_ingest(match_id: str) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             in_path = str(Path(tmpdir) / "original.mp4")
             out_path = str(Path(tmpdir) / "normalized.mp4")
+
+            download_start = time.monotonic()
             storage.download_to_file(original_key, in_path)
+            download_s = time.monotonic() - download_start
 
             encode_start = time.monotonic()
             result = normalize(
@@ -173,7 +176,9 @@ def run_ingest(match_id: str) -> None:
             encode_s = time.monotonic() - encode_start
 
             key = f"matches/{match.id}/normalized.mp4"
+            upload_start = time.monotonic()
             storage.upload_file(out_path, key, content_type="video/mp4")
+            upload_s = time.monotonic() - upload_start
 
         db.add(
             VideoAsset(
@@ -187,11 +192,17 @@ def run_ingest(match_id: str) -> None:
         )
         db.commit()
 
-        gpu_seconds = time.monotonic() - wall_start
+        # gpu_secondsはGPU/CPU計算コストのみを表す（DL/ULのI/O待ちを含めない。
+        # 08 §運用「1試合単位の原価計測を初日から」・設計レビュー13 D-2で判明した
+        # 過大計上の修正。wall_secondsは従来通りジョブ全体のwall time）
         metrics = build_metrics(
             time.monotonic() - wall_start,
-            gpu_seconds=gpu_seconds,
-            breakdown={"encode_s": round(encode_s, 2)},
+            gpu_seconds=encode_s,
+            breakdown={
+                "download_s": round(download_s, 2),
+                "encode_s": round(encode_s, 2),
+                "upload_s": round(upload_s, 2),
+            },
         )
         finish_success(db, job, metrics)
 
@@ -230,10 +241,10 @@ def run_analyze(match_id: str) -> None:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             local_path = str(Path(tmpdir) / "normalized.mp4")
+            download_start = time.monotonic()
             storage.download_to_file(normalized_key, local_path)
-            analyze_start = time.monotonic()
+            download_s = time.monotonic() - download_start
             result = cv_analyze(local_path, degraded=degraded)
-            analyze_s = time.monotonic() - analyze_start
 
         db.add(EventStream(match_id=match.id, version=1, payload=result["event_stream_payload"]))
 
@@ -252,11 +263,14 @@ def run_analyze(match_id: str) -> None:
             )
         db.commit()
 
-        gpu_seconds = time.monotonic() - wall_start
+        # stage_secondsはステージ別GPU秒（08 §運用「初日から」・オンデバイス移行判断の
+        # 入力、設計レビュー13 D-1）。gpu_secondsはDL待ちを含めずステージ計算のみ合算する
+        # （13 D-2、run_ingestと同じ方針）
+        stage_seconds = result["stage_seconds"]
         metrics = build_metrics(
             time.monotonic() - wall_start,
-            gpu_seconds=gpu_seconds,
-            breakdown={"stage1_4_s": round(analyze_s, 2)},
+            gpu_seconds=sum(stage_seconds.values()),
+            breakdown={"download_s": round(download_s, 2), **stage_seconds},
         )
         finish_success(db, job, metrics)
 
