@@ -6,12 +6,15 @@ precision >= 0.90 かつ recall >= 0.80 を下回ったらfail。
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
 from cvpipeline.pipeline import run_analyze
 
-GOLDEN_DIR = Path("/app/golden")
+# CONFIG_DIRと同じ環境変数パターン（cvpipeline/config_loader.py）。dockerでは/app/golden、
+# GitHub ActionsではGITHUB_WORKSPACE配下のgolden/を指す（設計レビュー13 E'-golden-ci）。
+GOLDEN_DIR = Path(os.environ.get("GOLDEN_DIR", "/app/golden"))
 LABELS_DIR = GOLDEN_DIR / "labels"
 VIDEOS_DIR = GOLDEN_DIR / "videos"  # .gitignore対象。実動画は別途配置する
 

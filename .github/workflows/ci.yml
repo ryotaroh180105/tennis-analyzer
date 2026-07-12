@@ -72,6 +72,18 @@ jobs:
       - name: Run cv-worker pipeline tests
         run: python -m pytest cv-worker/tests -v
 
+      - name: Run dispatcher tests
+        run: python -m pytest dispatcher/tests -v
+
+      - name: Run golden set regression
+        # golden/videos/ は.gitignore対象（大容量バイナリ）。golden/labels/にラベルが
+        # 無ければgolden_runner.py自身がno-opで正常終了する（10 §ゴールデンセット、
+        # 設計レビュー13 E'-golden-ci）。ラベル・動画がGit LFS等で用意され次第、
+        # このステップがそのまま品質ゲートとして機能する
+        env:
+          GOLDEN_DIR: ${{ github.workspace }}/golden
+        run: python -m cvpipeline.golden_runner
+
   frontend-build:
     runs-on: ubuntu-latest
 

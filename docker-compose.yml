@@ -142,6 +142,9 @@ services:
       - ./config:/app/config:ro
       - ./backend/app:/app/backend/app
       - ./cv-worker/cvpipeline:/app/cv-worker/cvpipeline
+      # `make golden`（cvpipeline.golden_runner）用。videos/は.gitignore対象のため
+      # 実動画はここに別途配置する（設計レビュー13 E'-golden-ci）
+      - ./golden:/app/golden
     depends_on:
       postgres:
         condition: service_healthy

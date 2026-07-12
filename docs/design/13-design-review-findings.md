@@ -154,10 +154,17 @@
   指標が半数以上）/外れ値（測定値がaggregateのmeasuredからiqr×1.5を超えて乖離）」で
   分類し色分け、タップで実測値一覧を表示。実ブラウザ（Playwright、モックAPI経由）で
   分類・タップ展開の動作を確認済み。
-- **ゴールデンセット回帰の自動ゲートがCI未配線** — 監査時点の分析どおり、golden動画自体が
-  `.gitignore`対象でCI環境に存在しないため、配線しても実行できない。ゴールデン動画の
-  管理方法（Git LFS・別ストレージからのCI時ダウンロード等）を先に決める必要があり、
-  本セッションのスコープ外とした。
+- **ゴールデンセット回帰の自動ゲートがCI未配線** — 解消（条件付き）。`.github/workflows/ci.yml`
+  に `python -m cvpipeline.golden_runner` ステップを追加した。golden動画・ラベルが
+  `.gitignore`対象でCI環境に無い現状は変わらないが、`golden_runner.py`自体が
+  `LABELS_DIR`が空なら「no-opで正常終了（exit 0）」する設計だったため、これは**壊れない
+  形で配線できる**（実際に試して確認済み）。合わせて`golden_runner.py`の`GOLDEN_DIR`を
+  ハードコード`/app/golden`から環境変数化（`CONFIG_DIR`と同じパターン）し、Docker以外
+  （CI・ローカル実行）でも正しいパスを指せるようにした。`docker-compose.yml`の
+  `worker-gpu`にも`./golden:/app/golden`マウントを追加（従来`make golden`が動画・
+  ラベルを一切見つけられない状態だった）。ゴールデン動画自体をGit LFS等で用意すれば、
+  このCIステップがそのまま品質ゲートとして機能する（そこは今回のスコープ外のまま）。
+  ついでに`dispatcher/tests`もCIから漏れていたため追加した。
 
 ---
 
