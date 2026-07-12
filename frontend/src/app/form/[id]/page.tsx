@@ -17,6 +17,7 @@ const STATUS_COLOR: Record<FormMetric["status"], string> = {
   borderline: "var(--sand)",
   out_of_range: "var(--alert)",
   unknown: "var(--ink-secondary)",
+  measured: "var(--ink-secondary)",
 };
 
 function formatValue(m: FormMetric): string {
@@ -30,7 +31,7 @@ function formatRange(m: FormMetric): string {
   if (m.elite_range == null) {
     if (m.expected_sign === "positive") return "参考: 正の値が理想（定性評価）";
     if (m.expected_sign === "negative") return "参考: 負の値が理想（定性評価）";
-    return "参考: データなし";
+    return "参考レンジ未確立（測定値のみ表示。文献未確認）";
   }
   return `参考: ${m.elite_range[0]}〜${m.elite_range[1]}${unit}`;
 }

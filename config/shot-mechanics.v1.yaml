@@ -319,56 +319,53 @@ shots:
     # 表示名はfrontend側のFORM_PHASE_LABEL_JAで定義する（statusラベル等と同じくUI文言は
     # フロント側の辞書に置く既存パターンに合わせる）
     phases: [preparation, point, trophy, acceleration, impact, follow_through]
+    # 4指標とも文献裏付けが取れず（12a §smash/volley再調査、PubMed・WebSearch双方で
+    # 確認）elite_rangeを推測値で埋めない（不変原則1）。measured-onlyモード
+    # （elite_range/expected_signを両方省略、13 A-3）で測定値のみ表示する。
     metrics:
       - id: point_arm_apex_height
         at: toss_apex           # detector上のイベント名はserve_like共通（非利き手首の頂点）
         primitive: relative_height
         args: {point: nondominant_wrist, ref: nondominant_shoulder}
         unit: relative_torso
-        elite_range: [0.6, 1.2]
-        tolerance: 0.15
         advice_key: point_arm
-        source: placeholder
+        source: measured_only  # 文献未確認（12a参照）。measured-onlyモード（13 A-3）
 
       - id: shoulder_hip_separation_at_trophy
         at: trophy
         primitive: line_separation
         args: {lines: [shoulder_line, hip_line]}
         unit: deg
-        elite_range: [20, 40]
-        tolerance: 8
         advice_key: hip_shoulder_separation
-        source: placeholder
+        source: measured_only  # 文献未確認（12a参照）。measured-onlyモード（13 A-3）
 
       - id: elbow_extension_at_impact
         at: impact
         primitive: joint_angle
         args: {points: [dominant_shoulder, dominant_elbow, dominant_wrist]}
         unit: deg
-        elite_range: [155, 180]
-        tolerance: 10
         advice_key: impact_extension
-        source: placeholder
+        source: measured_only  # 文献未確認（12a参照）。measured-onlyモード（13 A-3）
 
       - id: contact_height_relative
         at: impact
         primitive: relative_height
         args: {point: dominant_wrist, ref: dominant_shoulder}
         unit: relative_torso
-        elite_range: [1.2, 1.6]
-        tolerance: 0.15
         consistency_cv_max: 0.2
         advice_key: contact_height
-        source: placeholder
+        source: measured_only  # 文献未確認（12a参照）。measured-onlyモード（13 A-3）。
+                               # consistency_cv_maxはレンジ非依存の「ばらつき大」判定として維持
 
   # -------------------------------------------------------------
-  # volley（3d） — 文献が最も薄い。レンジ検証完了まで「測定値のみ表示」許容（12 §ロールアウト）
+  # volley（3d） — 文献が最も薄い。レンジ検証未完了の2指標は「測定値のみ表示」（12 §ロールアウト）
   # -------------------------------------------------------------
   volley:
     detector: volley
     phases: [ready, punch, contact, recovery]
     metrics:
-      # ボレーはスイングしない：コンタクト前後の肘角度変化が小さいほどパンチボレーの形
+      # ボレーはスイングしない：コンタクト前後の肘角度変化が小さいほどパンチボレーの形。
+      # 文献未確認（12a参照）のためmeasured-onlyモード（13 A-3）
       - id: elbow_angle_delta_through_contact
         at: contact
         primitive: angle_delta
@@ -377,21 +374,18 @@ shots:
           from_event: punch_start
           to_event: contact
         unit: deg
-        elite_range: [0, 25]
-        tolerance: 10
         advice_key: punch_not_swing
-        source: placeholder
+        source: measured_only  # 文献未確認（12a参照）。measured-onlyモード（13 A-3）
 
       - id: contact_forward_of_body
         at: contact
         primitive: forward_of_body
         args: {point: dominant_wrist}
         unit: relative_torso
-        elite_range: [0.2, 0.6]
-        tolerance: 0.1
         consistency_cv_max: 0.3
         advice_key: contact_point
-        source: placeholder
+        source: measured_only  # 文献未確認（12a参照）。measured-onlyモード（13 A-3）。
+                               # consistency_cv_maxはレンジ非依存の「ばらつき大」判定として維持
 
       - id: knee_flexion_at_contact
         at: contact

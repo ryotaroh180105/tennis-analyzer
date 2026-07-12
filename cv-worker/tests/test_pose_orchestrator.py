@@ -195,6 +195,13 @@ def test_analyze_landmarks_real_config_for_smash():
     assert result["shot_type"] == "smash"
     assert result["swing_count"] == 3
     assert len(result["metrics"]) == 4  # smashセクションの指標数
+    # smashは4指標とも文献未確認のためmeasured-onlyモード（13 A-3）。
+    # レンジ比較をせず、注目ポイント（feedback_metrics）の対象にもならない。
+    for metric in result["metrics"]:
+        assert metric["elite_range"] is None
+        assert metric["expected_sign"] is None
+        assert metric["status"] in ("measured", "unknown")
+    assert result["feedback_metrics"] == []
 
 
 def test_analyze_landmarks_real_config_for_volley():
@@ -204,3 +211,13 @@ def test_analyze_landmarks_real_config_for_volley():
     assert result["shot_type"] == "volley"
     assert result["swing_count"] == 3
     assert len(result["metrics"]) == 3  # volleyセクションの指標数
+
+    by_id = {m["id"]: m for m in result["metrics"]}
+    # elbow_angle_delta_through_contact / contact_forward_of_body は文献未確認
+    # のためmeasured-onlyモード（13 A-3）。knee_flexion_at_contactのみ実文献値
+    # （Huang 2008）を持ち、レンジ比較の対象。
+    assert by_id["elbow_angle_delta_through_contact"]["elite_range"] is None
+    assert by_id["elbow_angle_delta_through_contact"]["status"] in ("measured", "unknown")
+    assert by_id["contact_forward_of_body"]["elite_range"] is None
+    assert by_id["contact_forward_of_body"]["status"] in ("measured", "unknown")
+    assert by_id["knee_flexion_at_contact"]["elite_range"] == [155, 180]

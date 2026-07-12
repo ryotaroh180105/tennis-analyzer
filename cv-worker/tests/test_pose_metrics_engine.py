@@ -129,3 +129,36 @@ def test_aggregate_metric_qualitative_mode_no_valid_swings_is_unknown():
     result = aggregate_metric(_qualitative_metric(), [])
     assert result["status"] == "unknown"
     assert result["elite_range"] is None
+
+
+def _measured_only_metric(**overrides):
+    metric = _metric(id="contact_height_relative", advice_key="contact_height")
+    del metric["elite_range"]
+    del metric["tolerance"]
+    metric.update(overrides)
+    return metric
+
+
+def test_aggregate_metric_measured_only_mode_has_no_range_or_sign():
+    # 13 A-3: elite_rangeもexpected_signも無い指標はレンジ比較をせず"measured"を返す
+    # （文献未確認の指標に推測レンジを割り当てないための状態）
+    result = aggregate_metric(_measured_only_metric(), [100.0, 105.0, 95.0])
+    assert result["status"] == "measured"
+    assert result["elite_range"] is None
+    assert result["expected_sign"] is None
+    assert result["measured"] == 100.0
+    assert result["valid_swings"] == 3
+
+
+def test_aggregate_metric_measured_only_mode_no_valid_swings_is_unknown():
+    result = aggregate_metric(_measured_only_metric(), [])
+    assert result["status"] == "unknown"
+    assert result["elite_range"] is None
+
+
+def test_aggregate_metric_measured_only_mode_still_flags_high_variance_via_cv_max():
+    # レンジは無くてもconsistency_cv_maxがあれば「ばらつき大」判定は独立して機能する
+    metric = _measured_only_metric(consistency_cv_max=0.1)
+    result = aggregate_metric(metric, [100.0, 200.0, 100.0])
+    assert result["status"] == "measured"
+    assert result["high_variance"] is True

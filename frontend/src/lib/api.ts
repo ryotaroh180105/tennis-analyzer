@@ -205,7 +205,7 @@ export interface FormMetric {
   iqr: number | null;
   elite_range: [number, number] | null;
   expected_sign: "positive" | "negative" | null;
-  status: "in_range" | "borderline" | "out_of_range" | "unknown";
+  status: "in_range" | "borderline" | "out_of_range" | "unknown" | "measured";
   high_variance: boolean;
   valid_swings: number;
   advice_key: string;
@@ -297,4 +297,5 @@ export const FORM_METRIC_STATUS_LABEL_JA: Record<FormMetric["status"], string> =
   borderline: "レンジにやや近い",
   out_of_range: "参考レンジ外",
   unknown: "測定不能（映り込み不足）",
+  measured: "測定値のみ（参考レンジ未確立）",
 };
