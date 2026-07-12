@@ -67,13 +67,16 @@ uploads         (id, user_id FK, r2_key, r2_upload_id, status, total_size,
                 -- 1 upload = 1 match（使用済み upload_id での POST /matches は409）。
                 -- パート進捗はDBに持たない（R2 ListParts が正）
 matches         (id, user_id FK, upload_id FK UNIQUE, title, status, failure_reason,
-                 preflight_report JSONB, recorded_at, created_at)
+                 preflight_report JSONB, recorded_at, stage_results_r2_key, created_at)
                 -- status: queued | prechecking | ingesting | analyzing | editing | done | failed
                 --  （analysis_jobs.stage との対応: precheck→prechecking, ingest→ingesting,
                 --    analyze→analyzing, edit→editing。queuedは各stageの待機中）
                 -- recorded_at: 動画メタデータの撮影日時。無ければ created_at で初期化
                 -- failure_reason: {code, message} code: input_invalid | analyze_error |
                 --  edit_error | retry_exhausted（court_not_detected は使わない — 縮退続行のため）
+                -- stage_results_r2_key: stage1-3出力（重い部分）をgzip JSONで保存したR2キー。
+                --  設定済みならanalyzeジョブのリトライ時にstage1-3を再実行せずstage4-5のみ
+                --  再実行する（ステージ間チェックポイント、不変原則3）
 video_assets    (id, match_id FK, kind, generation, r2_key, duration_s, meta JSONB, created_at)
                 -- kind: original | normalized | edited | hls | thumbnail
                 -- original 行は POST /matches 時に uploads.r2_key を参照して作成（コピーしない）

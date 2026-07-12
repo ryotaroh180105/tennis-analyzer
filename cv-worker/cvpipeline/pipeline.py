@@ -1,4 +1,11 @@
-"""stage1-4を統括し、event_streams payload と初期segmentsを組み立てる（analyzeジョブの中身）。"""
+"""stage1-5を統括し、event_streams payload と初期segmentsを組み立てる（analyzeジョブの中身）。
+
+不変原則3（ステージ独立・中間出力保存で下流のみ再実行可能に保つ）に沿って、重い部分
+（stage1-3: コート検出・選手・ボール追跡）と軽い部分（stage4-5: 区間分割・ショット検出＋
+payload組み立て）を分離する。extract_stage_results() の戻り値はJSON化してR2に保存すれば、
+segmentation.v1.yaml変更時などにanalyze_from_stage_results()だけを再実行でき、
+30分ジョブの頭（動画再ダウンロード・骨格/コート再検出）からやり直さずに済む（10 §運用）。
+"""
 
 import time
 
@@ -12,12 +19,11 @@ from cvpipeline.video_io import ffprobe
 ANALYSIS_HZ = 5  # config/segmentation.v1.yaml sampling.base_hz と一致させる
 
 
-def run_analyze(video_path: str, degraded: bool) -> dict:
-    """戻り値: {"event_stream_payload": {...}, "segments": [{"start_s","end_s","confidence"}],
-    "stage_seconds": {"stage1_s"..."stage5_s"}}
+def extract_stage_results(video_path: str, degraded: bool) -> dict:
+    """stage1-3（コート検出・選手・ボール追跡）を実行する重い部分。
 
-    stage_seconds はステージ別GPU秒の原価計測に使う（08 §運用「初日から」・10 §metrics契約
-    breakdown: {..., stage1_s..stage4_s, ...}。設計レビュー13 D-1で判明した欠落分の追加）。
+    戻り値はJSON serializable（R2への永続化・stage_cli.pyのstage_input.jsonとしての
+    再利用を前提とする）。analyze_from_stage_results() にそのまま渡せば下流のみ再実行できる。
     """
     meta = ffprobe(video_path)
     stage_seconds: dict[str, float] = {}
@@ -47,6 +53,29 @@ def run_analyze(video_path: str, degraded: bool) -> dict:
         else analyze_ball_motion(video_path, hz=ANALYSIS_HZ, max_seconds=None)
     )
     stage_seconds["stage3_s"] = round(time.monotonic() - t0, 2)
+
+    return {
+        "meta": meta,
+        "court": court,
+        "person_result": person_result,
+        "ball_result": ball_result,
+        "degraded": degraded,
+        "stage_seconds": stage_seconds,
+    }
+
+
+def analyze_from_stage_results(stage_results: dict) -> dict:
+    """stage4-5（区間分割・ショット検出）とevent_stream_payload組み立て。軽量・再実行可能。
+
+    戻り値: {"event_stream_payload": {...}, "segments": [{"start_s","end_s","confidence"}],
+    "stage_seconds": {"stage1_s"..."stage5_s"}}
+    """
+    meta = stage_results["meta"]
+    court = stage_results["court"]
+    person_result = stage_results["person_result"]
+    ball_result = stage_results["ball_result"]
+    degraded = stage_results["degraded"]
+    stage_seconds = dict(stage_results["stage_seconds"])
 
     t0 = time.monotonic()
     seg_result = segment_points(person_result, ball_result, degraded=degraded, duration_s=meta["duration_s"])
@@ -97,3 +126,13 @@ def run_analyze(video_path: str, degraded: bool) -> dict:
         "degraded": degraded,
         "stage_seconds": stage_seconds,
     }
+
+
+def run_analyze(video_path: str, degraded: bool) -> dict:
+    """stage1-5を通しで実行する一括版（既存呼び出し元・ゴールデン回帰との後方互換用）。
+
+    ステージ単位の再開が必要な場合は extract_stage_results() / analyze_from_stage_results()
+    を個別に呼ぶこと（不変原則3）。
+    """
+    stage_results = extract_stage_results(video_path, degraded)
+    return analyze_from_stage_results(stage_results)

@@ -50,6 +50,33 @@ def test_analyze_produces_segments_within_video_bounds(tmp_path, synthetic_video
     assert all(v >= 0 for v in result["stage_seconds"].values())
 
 
+def test_extract_stage_results_allows_downstream_only_rerun(tmp_path, synthetic_video):
+    """13 C-1: stage1-3の出力（重い部分）を保存しておけば、stage4-5だけを再実行できる
+    （segmentation.v1.yaml変更時などに動画の再ダウンロード・コート/選手/ボール再検出を
+    やり直さずに済む。不変原則3）。
+    """
+    import json
+
+    from cvpipeline.ingest import normalize
+    from cvpipeline.pipeline import analyze_from_stage_results, extract_stage_results, run_analyze
+
+    normalized_path = str(tmp_path / "normalized.mp4")
+    normalize(synthetic_video, normalized_path, encoder="libx264", gop_seconds=2, bitrate="2M")
+
+    stage_results = extract_stage_results(normalized_path, degraded=False)
+    assert set(stage_results["stage_seconds"].keys()) == {"stage1_s", "stage2_s", "stage3_s"}
+
+    # R2永続化を想定したJSON往復可能性（保存→再読込→下流のみ再実行、を模擬）
+    round_tripped = json.loads(json.dumps(stage_results))
+
+    from_split = analyze_from_stage_results(round_tripped)
+    from_one_shot = run_analyze(normalized_path, degraded=False)
+
+    assert from_split["segments"] == from_one_shot["segments"]
+    assert from_split["event_stream_payload"] == from_one_shot["event_stream_payload"]
+    assert set(from_split["stage_seconds"].keys()) == {"stage1_s", "stage2_s", "stage3_s", "stage4_s", "stage5_s"}
+
+
 def test_full_pipeline_including_edit_and_hls(tmp_path, synthetic_video):
     from cvpipeline.ingest import normalize
     from cvpipeline.pipeline import run_analyze

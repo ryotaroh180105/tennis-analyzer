@@ -78,6 +78,10 @@ class Match(Base):
     self_side: Mapped[SelfSide | None] = mapped_column(
         SAEnum(SelfSide, name="self_side"), nullable=True
     )
+    # stage1-3（コート検出・選手・ボール追跡、重い部分）の出力をgzip JSONでR2に保存した
+    # キー。analyzeジョブのリトライ・再開時にこれが設定済みなら、動画再ダウンロードと
+    # stage1-3の再実行をスキップしてstage4-5のみ再実行する（不変原則3、13 C-1）。
+    stage_results_r2_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     recorded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

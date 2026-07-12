@@ -219,7 +219,10 @@ def run_ingest(match_id: str) -> None:
 
 @celery_app.task(name="app.jobs.tasks.run_analyze")
 def run_analyze(match_id: str) -> None:
-    from cvpipeline.pipeline import run_analyze as cv_analyze
+    import gzip
+    import json
+
+    from cvpipeline.pipeline import analyze_from_stage_results, extract_stage_results
 
     db = SessionLocal()
     job = None
@@ -236,15 +239,34 @@ def run_analyze(match_id: str) -> None:
         _mark_stage_status(db, match, "analyze")
         wall_start = time.monotonic()
 
-        normalized_key, _ = _current_asset_key(db, match.id, "normalized")
         degraded = bool((match.preflight_report or {}).get("degraded", False))
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            local_path = str(Path(tmpdir) / "normalized.mp4")
-            download_start = time.monotonic()
-            storage.download_to_file(normalized_key, local_path)
-            download_s = time.monotonic() - download_start
-            result = cv_analyze(local_path, degraded=degraded)
+        # ステージ間チェックポイント（不変原則3・10 §運用「stage単位の再開。30分ジョブの
+        # 頭からやり直しをしない」）：stage1-3（コート検出・選手・ボール追跡、重い部分）の
+        # 出力が既に保存済み（前回attemptで成功済み）なら、動画再ダウンロードと
+        # stage1-3の再実行をスキップし、stage4-5のみ再実行する。
+        download_s = 0.0
+        if match.stage_results_r2_key:
+            stage_results = json.loads(gzip.decompress(storage.get_object_bytes(match.stage_results_r2_key)))
+        else:
+            normalized_key, _ = _current_asset_key(db, match.id, "normalized")
+            with tempfile.TemporaryDirectory() as tmpdir:
+                local_path = str(Path(tmpdir) / "normalized.mp4")
+                download_start = time.monotonic()
+                storage.download_to_file(normalized_key, local_path)
+                download_s = time.monotonic() - download_start
+                stage_results = extract_stage_results(local_path, degraded=degraded)
+
+            stage_results_key = f"matches/{match.id}/stage_results.v1.json.gz"
+            storage.put_object_bytes(
+                stage_results_key,
+                gzip.compress(json.dumps(stage_results).encode("utf-8")),
+                content_type="application/gzip",
+            )
+            match.stage_results_r2_key = stage_results_key
+            db.commit()
+
+        result = analyze_from_stage_results(stage_results)
 
         db.add(EventStream(match_id=match.id, version=1, payload=result["event_stream_payload"]))
 

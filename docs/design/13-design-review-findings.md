@@ -65,15 +65,29 @@
 
 ---
 
-## C. 不変原則3（ステージ独立・中間出力保存）が未達 `[実装 / 方針は既存docで確定済み]`
+## C. 不変原則3（ステージ独立・中間出力保存） `[C-1/C-2実装済み・C-3は部分実装]`
 
-- **C-1 stage1-3の中間出力を保存せず、下流のみ再実行が不可能** — `pipeline.py:13-78` が
-  メモリ内連続実行、`tasks.py:238-252` で `event_streams`/`segments` だけ永続化。taxonomy変更で
-  CVをやり直さず再計算する経路が無く、リトライは毎回stage1から（`tasks.py:209`）。設計02:53/
-  10:224 が要求する stage単位再開が未実装。
-- **C-2 ステージ独立CLI（`stage_input.json→stage_output.json`）未実装**（設計10:255）。
-- **C-3 GPUディスパッチャ未実装・廃止予定のCelery gpuキューで代替** — `celery_app.py:52-54`,
-  `docker-compose.yml:134-156`。00決定7「サーバーレスGPU・常駐なし」と矛盾。本番切替時に手戻り。
+- **C-1 stage1-3の中間出力を保存せず、下流のみ再実行が不可能** — 解消。
+  `cvpipeline/pipeline.py` を `extract_stage_results()`（stage1-3、重い部分）と
+  `analyze_from_stage_results()`（stage4-5+payload組み立て、軽量・再実行可能）に分離。
+  `matches.stage_results_r2_key`（Alembic 0009）に stage1-3 出力をgzip JSONで保存し、
+  `tasks.py` の `run_analyze` はこのキーが設定済みならstage1-3の再実行と動画再ダウンロードを
+  スキップする（ステージ間チェックポイント、10 §運用）。`run_analyze()` 自体は
+  一括実行版として後方互換のまま残す。
+- **C-2 ステージ独立CLI（`stage_input.json→stage_output.json`）未実装** — 解消。
+  `cvpipeline/stage_cli.py`（`python -m cvpipeline.stage_cli <stage1..5> in.json out.json`）
+  を追加。各ステージ関数へのkwargs変換・JSON往復をテスト済み（`test_stage_cli.py`）。
+- **C-3 GPUディスパッチャ** — インターフェースとdev用実装のみ実装。トップレベルの
+  `dispatcher/` パッケージに `GpuJobDispatcher`（ABC）・`LocalDispatcher`（ローカル実行、
+  同時起動数をセマフォで制御）・ジョブレジストリを追加、テスト済み（`dispatcher/tests/`）。
+  **実プロバイダ（RunPod/Modal）向け実装（`serverless.py`）は未実装のまま** — このセッションには
+  実クラウド資格情報もDocker実行環境も無く、実装しても一度も検証できないため
+  （不変原則1：動作未確認のコードを実装済みと偽らない）。`docker-compose.yml` の
+  `worker-gpu`（常駐Celery gpuキュー）も未変更のまま（ディスパッチャがまだ本番導線に
+  配線されていないため、動いている現行のdev環境を壊すリスクを避けた）。
+  次のアクション：(1) プロバイダ選定・資格情報の準備、(2) `serverless.py` の実装、
+  (3) Docker/実クラウドが使える環境での `run_ingest`/`run_analyze` のディスパッチャ経由
+  実行への配線とE2E検証、(4) `worker-gpu`/Celery gpuキューの廃止。
 
 ## D. 「初日から」取るべき原価データが取れていない（後から遡れない）`[実装済み]`
 
