@@ -228,82 +228,16 @@ export interface FormAnalysisResult {
   created_at: string;
 }
 
-export const STATUS_LABEL_JA: Record<MatchStatus, string> = {
-  queued: "動画を確認しています",
-  prechecking: "動画を確認しています",
-  ingesting: "動画を整えています（1/3）",
-  analyzing: "プレーを探しています（2/3）",
-  editing: "編集しています（3/3）",
-  done: "完了",
-  failed: "解析できませんでした",
-};
-
-export const FORM_STATUS_LABEL_JA: Record<FormSessionStatus, string> = {
-  queued: "解析を待っています",
-  analyzing: "骨格を解析しています",
-  done: "完了",
-  failed: "解析できませんでした",
-};
-
-export const FORM_SHOT_TYPE_LABEL_JA: Record<FormShotType, string> = {
-  serve: "サーブ",
-  forehand: "フォアハンド",
-  backhand: "バックハンド",
-  smash: "スマッシュ",
-  volley: "ボレー",
-};
-
-export const BACKHAND_STYLE_LABEL_JA: Record<BackhandStyle, string> = {
-  one_handed: "片手",
-  two_handed: "両手",
-  auto: "自動判定",
-};
-
-export const FORM_PHASE_LABEL_JA: Record<string, string> = {
-  preparation: "構え",
-  toss: "トス",
-  point: "ポインティング",
-  trophy: "トロフィーポーズ",
-  acceleration: "加速",
-  impact: "インパクト",
-  follow_through: "フォロースルー",
-  ready: "構え",
-  backswing_end: "バックスイング",
-  contact: "コンタクト",
-  punch_start: "パンチ開始",
-  // smash: point_arm_apex_height はserve_like検出器のtoss_apexイベントを
-  // 「ポインティング腕の頂点」として読み替える（shot-mechanics.v1.yaml参照）
-  toss_apex: "ポインティング",
-};
-
-export const FORM_METRIC_LABEL_JA: Record<string, string> = {
-  // serve / smash
-  knee_flexion_at_trophy: "トロフィーポーズの膝の曲がり",
-  elbow_height_at_trophy: "トロフィーポーズの肘の高さ",
-  shoulder_hip_separation_at_trophy: "肩と腰の捻転差",
-  elbow_extension_at_impact: "インパクト時の肘の伸び",
-  contact_height_relative: "打点の高さ",
-  toss_apex_to_impact_ms: "トスからインパクトまでの時間",
-  point_arm_apex_height: "ポインティング腕の高さ",
-  // forehand / backhand
-  shoulder_hip_separation_at_backswing: "バックスイングの捻転差",
-  shoulder_hip_separation_at_backswing_2h: "バックスイングの捻転差",
-  contact_forward_of_hip: "打点の前後位置",
-  backswing_to_contact_ms: "バックスイングからコンタクトまでの時間",
-  elbow_angle_at_contact: "コンタクト時の肘の角度",
-  elbow_extension_at_contact: "コンタクト時の肘の伸び",
-  shoulder_hip_separation_direction_at_contact: "コンタクト時の捻転の向き",
-  shoulder_hip_separation_direction_at_contact_2h: "コンタクト時の捻転の向き",
-  // volley
-  elbow_angle_delta_through_contact: "コンタクト前後の肘角度変化",
-  contact_forward_of_body: "打点の前後位置",
-  knee_flexion_at_contact: "コンタクト時の膝の曲がり",
-};
-
-export const FORM_METRIC_STATUS_LABEL_JA: Record<FormMetric["status"], string> = {
-  in_range: "参考レンジ内",
-  borderline: "レンジにやや近い",
-  out_of_range: "参考レンジ外",
-  unknown: "測定不能（映り込み不足）",
-  measured: "測定値のみ（参考レンジ未確立）",
-};
+// UI文言はロケールキー型辞書に集約している（13 E'）。既存の import 元を変えずに
+// 済むよう、ここで再エクスポートする。
+export {
+  STATUS_LABEL_JA,
+  FORM_STATUS_LABEL_JA,
+  FORM_SHOT_TYPE_LABEL_JA,
+  BACKHAND_STYLE_LABEL_JA,
+  FORM_PHASE_LABEL_JA,
+  FORM_METRIC_LABEL_JA,
+  FORM_METRIC_STATUS_LABEL_JA,
+  MATCH_FAILURE_LABEL_JA,
+  PRECHECK_WARNING_LABEL_JA,
+} from "@/lib/i18n/dictionaries";

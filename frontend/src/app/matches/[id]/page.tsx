@@ -3,19 +3,12 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import useSWR from "swr";
-import { api, LOW_CONFIDENCE_THRESHOLD, STATUS_LABEL_JA } from "@/lib/api";
+import { api, LOW_CONFIDENCE_THRESHOLD, MATCH_FAILURE_LABEL_JA, PRECHECK_WARNING_LABEL_JA, STATUS_LABEL_JA } from "@/lib/api";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
 import { Ribbon } from "@/components/Ribbon";
 import { ScorePad } from "@/components/ScorePad";
 import { StatsPanel } from "@/components/StatsPanel";
 import { VideoPlayer } from "@/components/VideoPlayer";
-
-const PRECHECK_WARN_LABEL_JA: Record<string, string> = {
-  resolution: "解像度が720p未満です。精度が下がる場合があります。",
-  framerate: "フレームレートが24fps未満です。精度が下がる場合があります。",
-  orientation: "縦向きの動画です。画角が狭く、映り込みが不足する場合があります。",
-  court: "コートの検出信頼度が低めです。区間の精度をご確認ください。",
-};
 
 function PrecheckWarnings({ checks }: { checks: Record<string, { result: string }> | undefined }) {
   // 03 §プリフライトチェック: 縮退（court=fail）以外のwarn結果もUIに表示する
@@ -37,7 +30,7 @@ function PrecheckWarnings({ checks }: { checks: Record<string, { result: string 
             lineHeight: 1.5,
           }}
         >
-          {PRECHECK_WARN_LABEL_JA[key] || `${key}: 精度が下がる場合があります。`}
+          {PRECHECK_WARNING_LABEL_JA[key] || `${key}: 精度が下がる場合があります。`}
         </div>
       ))}
     </div>
@@ -95,13 +88,6 @@ function formatDuration(s: number): string {
     ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
     : `${m}:${String(sec).padStart(2, "0")}`;
 }
-
-const FAILURE_MESSAGES: Record<string, string> = {
-  input_invalid: "動画を読み込めませんでした。別の動画でお試しください。",
-  analyze_error: "解析中にエラーが発生しました。",
-  edit_error: "編集中にエラーが発生しました。",
-  retry_exhausted: "解析に繰り返し失敗しました。動画を確認してもう一度お試しください。",
-};
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -162,7 +148,7 @@ export default function MatchDetailPage() {
               lineHeight: 1.6,
             }}
           >
-            {FAILURE_MESSAGES[match.failure_reason?.code || ""] || "解析できませんでした。"}
+            {MATCH_FAILURE_LABEL_JA[match.failure_reason?.code || ""] || "解析できませんでした。"}
           </div>
         </div>
       )}
