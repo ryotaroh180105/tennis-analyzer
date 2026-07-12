@@ -1,6 +1,6 @@
 /* デザイントークン（11-ui-design.md 準拠）
    大衆向けの明るいUIを既定にする（OSがダークモードでも自動追従しない。
-   ダーク切替のUIを持つまでは [data-theme="dark"] は明示指定時のみ使う）。 */
+   ThemeToggle.tsxの明示トグルでのみ [data-theme="dark"] に切り替わる）。 */
 :root {
   --surface: #f4faf3;
   --surface-raised: #ffffff;

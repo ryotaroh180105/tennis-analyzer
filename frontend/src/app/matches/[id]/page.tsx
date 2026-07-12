@@ -10,6 +10,40 @@ import { ScorePad } from "@/components/ScorePad";
 import { StatsPanel } from "@/components/StatsPanel";
 import { VideoPlayer } from "@/components/VideoPlayer";
 
+const PRECHECK_WARN_LABEL_JA: Record<string, string> = {
+  resolution: "解像度が720p未満です。精度が下がる場合があります。",
+  framerate: "フレームレートが24fps未満です。精度が下がる場合があります。",
+  orientation: "縦向きの動画です。画角が狭く、映り込みが不足する場合があります。",
+  court: "コートの検出信頼度が低めです。区間の精度をご確認ください。",
+};
+
+function PrecheckWarnings({ checks }: { checks: Record<string, { result: string }> | undefined }) {
+  // 03 §プリフライトチェック: 縮退（court=fail）以外のwarn結果もUIに表示する
+  // （13 E': precheckが計算していた警告がバックエンドで捨てられ、degraded以外は
+  // フロントに一切出ていなかった）。
+  if (!checks) return null;
+  const warnings = Object.entries(checks).filter(([, c]) => c.result === "warn");
+  if (warnings.length === 0) return null;
+  return (
+    <div style={{ margin: "4px 16px 0", display: "flex", flexDirection: "column", gap: 4 }}>
+      {warnings.map(([key]) => (
+        <div
+          key={key}
+          style={{
+            padding: "8px 12px",
+            background: "var(--sand-soft)",
+            borderRadius: 10,
+            fontSize: 11,
+            lineHeight: 1.5,
+          }}
+        >
+          {PRECHECK_WARN_LABEL_JA[key] || `${key}: 精度が下がる場合があります。`}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DegradedBanner() {
   // 11 §3: 縮退モード時のインフォバー。エラー色にしない（sand系）。
   // 完了ビューでも表示し続ける（13 B-3: 旧実装は処理中ビューでのみ表示され、
@@ -181,6 +215,7 @@ export default function MatchDetailPage() {
           </div>
 
           {match.preflight_report?.degraded && <DegradedBanner />}
+          <PrecheckWarnings checks={match.preflight_report?.checks} />
 
           {!match.self_side && (
             <div style={{ margin: "10px 16px 0", padding: "12px", background: "var(--court-soft)", borderRadius: 10 }}>
@@ -217,6 +252,7 @@ export default function MatchDetailPage() {
           </div>
 
           {match.preflight_report?.degraded && <DegradedBanner />}
+          <PrecheckWarnings checks={match.preflight_report?.checks} />
 
           {normalizedAsset?.duration_s != null && editedAsset?.duration_s != null && (
             <div style={{ padding: "10px 16px 4px" }}>

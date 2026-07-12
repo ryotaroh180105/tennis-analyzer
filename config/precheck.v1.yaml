@@ -1,0 +1,17 @@
+# プリフライトチェックのしきい値 v1（03-recording-guidelines.md §プリフライトチェック）
+# 判定しきい値のコード内定数は不変原則2違反（設計レビュー13 E'）。
+
+version: 1
+
+resolution:
+  min_width: 960     # 720p未満は警告
+  min_height: 540
+
+framerate:
+  min_fps: 20.0      # 24fps未満は警告（多少の余裕を持たせた下限）
+
+# stage1_court.detect_court の confidence に対するしきい値。
+# ok以上=コート検出成功、warn以上=縮退せず続行するが警告、それ未満=縮退モード。
+court_confidence:
+  ok_min: 0.5
+  warn_min: 0.2

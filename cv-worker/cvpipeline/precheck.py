@@ -3,15 +3,13 @@
 先頭60秒のメタデータ検査＋簡易コート検出を行い、matches.preflight_report を作る。
 """
 
+from cvpipeline.config_loader import load_precheck_params
 from cvpipeline.stages.stage1_court import detect_court
 from cvpipeline.video_io import ffprobe
 
-# 03 §プリフライトチェックのしきい値（暫定値。将来configへ外出しする余地あり）
-MIN_RESOLUTION = (960, 540)  # 720p未満は警告
-MIN_FPS = 20.0
-
 
 def run_precheck(video_path: str) -> dict:
+    params = load_precheck_params()
     meta = ffprobe(video_path)
 
     checks: dict[str, dict] = {}
@@ -26,7 +24,9 @@ def run_precheck(video_path: str) -> dict:
         }
 
     court = detect_court(video_path, sample_seconds=min(60.0, meta["duration_s"]))
-    court_result = "ok" if court["confidence"] >= 0.5 else ("warn" if court["confidence"] >= 0.2 else "fail")
+    ok_min = params["court_confidence"]["ok_min"]
+    warn_min = params["court_confidence"]["warn_min"]
+    court_result = "ok" if court["confidence"] >= ok_min else ("warn" if court["confidence"] >= warn_min else "fail")
     checks["court"] = {
         "result": court_result,
         "value": court["confidence"],
@@ -35,14 +35,14 @@ def run_precheck(video_path: str) -> dict:
 
     degraded = court_result == "fail"
 
-    res_ok = meta["width"] >= MIN_RESOLUTION[0] and meta["height"] >= MIN_RESOLUTION[1]
+    res_ok = meta["width"] >= params["resolution"]["min_width"] and meta["height"] >= params["resolution"]["min_height"]
     checks["resolution"] = {
         "result": "ok" if res_ok else "warn",
         "value": f"{meta['width']}x{meta['height']}",
         "message": "resolution ok" if res_ok else "resolution below recommended 720p",
     }
 
-    fps_ok = meta["fps"] >= MIN_FPS
+    fps_ok = meta["fps"] >= params["framerate"]["min_fps"]
     checks["framerate"] = {
         "result": "ok" if fps_ok else "warn",
         "value": meta["fps"],

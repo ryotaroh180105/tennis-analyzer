@@ -271,6 +271,9 @@ export const FORM_PHASE_LABEL_JA: Record<string, string> = {
   backswing_end: "バックスイング",
   contact: "コンタクト",
   punch_start: "パンチ開始",
+  // smash: point_arm_apex_height はserve_like検出器のtoss_apexイベントを
+  // 「ポインティング腕の頂点」として読み替える（shot-mechanics.v1.yaml参照）
+  toss_apex: "ポインティング",
 };
 
 export const FORM_METRIC_LABEL_JA: Record<string, string> = {

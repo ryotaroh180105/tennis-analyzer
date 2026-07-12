@@ -1,4 +1,4 @@
-"""config/court-spec.v1.yaml, config/segmentation.v1.yaml のロード。
+"""config/court-spec.v1.yaml, config/segmentation.v1.yaml, config/precheck.v1.yaml のロード。
 
 しきい値・コート寸法をコードにハードコードしない（CLAUDE.md 不変原則2）。
 CONFIG_DIR 環境変数でリポジトリの config/ を指す（docker-composeでマウント）。
@@ -23,6 +23,13 @@ def load_court_spec(version: str = "v1") -> dict:
 @lru_cache
 def load_segmentation_params(version: str = "v1") -> dict:
     path = CONFIG_DIR / f"segmentation.{version}.yaml"
+    with open(path, encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+@lru_cache
+def load_precheck_params(version: str = "v1") -> dict:
+    path = CONFIG_DIR / f"precheck.{version}.yaml"
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
