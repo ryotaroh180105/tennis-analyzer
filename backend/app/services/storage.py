@@ -154,3 +154,28 @@ def download_to_file(key: str, dest_path: str) -> None:
 def upload_file(local_path: str, key: str, content_type: str = "application/octet-stream") -> None:
     client = get_s3_client()
     client.upload_file(local_path, settings.s3_bucket, key, ExtraArgs={"ContentType": content_type})
+
+
+def delete_object(key: str) -> None:
+    """データ保持ポリシー（08 §データライフサイクル）に基づく削除で使う。冪等
+    （存在しないキーの削除はS3互換APIでは通常エラーにならない）。"""
+    client = get_s3_client()
+    client.delete_object(Bucket=settings.s3_bucket, Key=key)
+
+
+def delete_prefix(prefix: str) -> None:
+    """prefix配下の全オブジェクトを削除する（HLS: playlist.m3u8 + 複数の.tsセグメントが
+    同一prefix配下にあり、VideoAssetはplaylistのキーしか持たないため）。"""
+    client = get_s3_client()
+    continuation_token = None
+    while True:
+        kwargs = {"Bucket": settings.s3_bucket, "Prefix": prefix}
+        if continuation_token:
+            kwargs["ContinuationToken"] = continuation_token
+        resp = client.list_objects_v2(**kwargs)
+        objects = [{"Key": obj["Key"]} for obj in resp.get("Contents", [])]
+        if objects:
+            client.delete_objects(Bucket=settings.s3_bucket, Delete={"Objects": objects})
+        if not resp.get("IsTruncated"):
+            break
+        continuation_token = resp.get("NextContinuationToken")

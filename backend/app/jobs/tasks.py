@@ -24,13 +24,26 @@ from app.jobs.orchestration import (
     start_attempt,
 )
 from app.models.job import JobStage
-from app.models.match import STAGE_TO_STATUS, Match, MatchStatus, VideoAsset
+from app.models.match import STAGE_TO_STATUS, Match, MatchStatus, VideoAsset, VideoAssetKind
 from app.models.segment import Segment, SegmentOp, SegmentSource
 from app.models.match import EventStream
 from app.services import segments as segments_service
 from app.services import storage
 
 logger = logging.getLogger("jobs.tasks")
+
+# データライフサイクル保持日数（08 §データライフサイクル・プライバシー）。
+# Phase 0は全ユーザーFree扱いで運用する（プラン概念はPhase1で導入、08表の「※Phase 0の適用」）。
+_RETENTION_DAYS: dict[VideoAssetKind, int] = {
+    VideoAssetKind.original: 30,
+    VideoAssetKind.normalized: 30,
+    VideoAssetKind.edited: 90,
+    VideoAssetKind.hls: 90,
+    VideoAssetKind.thumbnail: 90,
+    VideoAssetKind.highlight: 90,
+    VideoAssetKind.highlight_hls: 90,
+}
+_RETENTION_NOTICE_DAYS_BEFORE = 3
 
 
 def _mark_stage_status(db: Session, match: Match, stage: str) -> None:
@@ -699,5 +712,80 @@ def run_form_analyze(form_session_id: str) -> None:
             session.status = FormSessionStatus.failed
             session.failure_reason = {"code": "analyze_error", "message": str(exc)}
             db.commit()
+    finally:
+        db.close()
+
+
+_ASSET_KIND_LABEL_JA = {
+    VideoAssetKind.original: "原本",
+    VideoAssetKind.normalized: "正規化済み",
+    VideoAssetKind.edited: "編集済み",
+    VideoAssetKind.hls: "編集済み配信用",
+    VideoAssetKind.thumbnail: "サムネイル",
+    VideoAssetKind.highlight: "ハイライト",
+    VideoAssetKind.highlight_hls: "ハイライト配信用",
+}
+
+
+def _delete_video_asset(asset: VideoAsset) -> None:
+    if asset.kind in (VideoAssetKind.hls, VideoAssetKind.highlight_hls):
+        # r2_keyはplaylist.m3u8単体を指すが、実体は同一prefix配下に.tsセグメントを
+        # 複数持つ（run_edit/run_highlight参照）ため、prefixごと削除する。
+        prefix = asset.r2_key.rsplit("/", 1)[0] + "/"
+        storage.delete_prefix(prefix)
+    else:
+        storage.delete_object(asset.r2_key)
+
+
+@celery_app.task(name="app.jobs.tasks.run_data_retention")
+def run_data_retention() -> None:
+    """データライフサイクル保持バッチ（08 §データライフサイクル・プライバシー、
+    10 M5、設計レビュー13 E'）。日次実行。期限到達したアセットをR2・DBから削除し、
+    期限の`_RETENTION_NOTICE_DAYS_BEFORE`日前には削除予告を通知する
+    （08「削除ポリシーは期限前にLINE/メールで通知」）。
+
+    Phase 0は全ユーザーFree扱いの保持日数（_RETENTION_DAYS）で運用する
+    （プラン概念はPhase1で導入）。
+    """
+    import datetime as dt
+
+    from app.models.user import User
+
+    db = SessionLocal()
+    try:
+        now = dt.datetime.now(dt.timezone.utc)
+        assets = db.query(VideoAsset).all()
+        for asset in assets:
+            retention_days = _RETENTION_DAYS.get(asset.kind)
+            if retention_days is None:
+                continue
+
+            created_at = asset.created_at
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=dt.timezone.utc)
+            age_days = (now - created_at).days
+            days_remaining = retention_days - age_days
+
+            if days_remaining <= 0:
+                try:
+                    _delete_video_asset(asset)
+                except Exception:  # noqa: BLE001 — R2側の一時失敗で保持バッチ全体を止めない
+                    logger.exception("failed to delete video asset %s (r2_key=%s)", asset.id, asset.r2_key)
+                    continue
+                db.delete(asset)
+                db.commit()
+            elif days_remaining == _RETENTION_NOTICE_DAYS_BEFORE:
+                match = db.get(Match, asset.match_id)
+                if match is None:
+                    continue
+                user = db.get(User, match.user_id)
+                if user is None:
+                    continue
+                label = _ASSET_KIND_LABEL_JA.get(asset.kind, asset.kind.value)
+                notify_user(
+                    user,
+                    f"「{match.title}」の{label}動画は{days_remaining}日後に削除されます。"
+                    "保存したい場合はダウンロードしてください。",
+                )
     finally:
         db.close()

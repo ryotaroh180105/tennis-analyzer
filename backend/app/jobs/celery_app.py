@@ -49,6 +49,7 @@ celery_app.conf.update(
         "app.jobs.tasks.run_immediate_feedback": {"queue": "cpu"},
         "app.jobs.tasks.run_weekly_digest": {"queue": "cpu"},
         "app.jobs.tasks.run_weekly_digest_for_user": {"queue": "cpu"},
+        "app.jobs.tasks.run_data_retention": {"queue": "cpu"},
         "app.jobs.tasks.run_ingest": {"queue": "gpu"},
         "app.jobs.tasks.run_analyze": {"queue": "gpu"},
         "app.jobs.tasks.run_form_analyze": {"queue": "gpu"},
@@ -57,6 +58,12 @@ celery_app.conf.update(
         "weekly-advice-digest": {
             "task": "app.jobs.tasks.run_weekly_digest",
             "schedule": _weekly_digest_crontab(),
+        },
+        # データライフサイクル保持バッチ（08 §データライフサイクル・プライバシー、
+        # 10 M5、設計レビュー13 E'）。日次実行。
+        "data-retention": {
+            "task": "app.jobs.tasks.run_data_retention",
+            "schedule": crontab(hour=4, minute=0),
         },
     },
 )
