@@ -89,9 +89,13 @@ export const api = {
   recut: (matchId: string) => apiFetch<{ status: string }>(`/api/matches/${matchId}/recut`, { method: "POST" }),
   createShare: (matchId: string) => apiFetch<{ url: string }>(`/api/matches/${matchId}/share`, { method: "POST" }),
   getPlayback: (matchId: string) =>
-    apiFetch<{ playlist_url: string; thumbnail_url: string | null }>(`/api/matches/${matchId}/playback`),
+    apiFetch<{ playlist_url: string; thumbnail_url: string | null; segments: SegmentEffective[] | null }>(
+      `/api/matches/${matchId}/playback`
+    ),
   getSharePlayback: (token: string) =>
-    apiFetch<{ playlist_url: string; thumbnail_url: string | null }>(`/api/share/${token}/playback`),
+    apiFetch<{ playlist_url: string; thumbnail_url: string | null; segments: SegmentEffective[] | null }>(
+      `/api/share/${token}/playback`
+    ),
 
   // アップロード（マルチパート・中断再開。10 §アップロードAPI）
   createUpload: (filename: string, totalSize: number, contentType: string) =>

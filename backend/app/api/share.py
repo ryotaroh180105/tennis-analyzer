@@ -9,12 +9,14 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from app.api.schemas import PlaybackResponse
+from app.api.schemas import PlaybackResponse, SegmentEffective
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.errors import not_found
 from app.models.match import VideoAsset
+from app.models.segment import Segment
 from app.models.share import ShareLink
+from app.services import segments as segments_service
 from app.services import storage
 
 router = APIRouter(prefix="/api/share", tags=["share"])
@@ -44,9 +46,16 @@ def get_playback(token: str, db: Session = Depends(get_db)) -> PlaybackResponse:
         else None
     )
 
+    # 読み取り専用リボン用（13 E'-share-ribbon、11 §5「プレーヤー＋リボン（読み取り専用）」）。
+    # 共有ページが再生するのは編集済み（デッドタイム除去済み）動画のため、元のstart_s/end_sの
+    # 意味は無い。フロント側で区間の長さの累積＝編集済み動画上の章区切りとして再解釈する。
+    rows = db.query(Segment).filter(Segment.match_id == link.match_id).all()
+    effective = segments_service.compute_effective(rows)
+
     return PlaybackResponse(
         playlist_url=f"/api/share/{token}/playlist.m3u8",
         thumbnail_url=thumbnail_url,
+        segments=[SegmentEffective(**e) for e in effective],
     )
 
 

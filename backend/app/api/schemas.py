@@ -100,6 +100,10 @@ class ShareLinkResponse(BaseModel):
 class PlaybackResponse(BaseModel):
     playlist_url: str
     thumbnail_url: str | None
+    # 共有ページの読み取り専用リボン用（13 E'-share-ribbon）。match/highlight playbackでは
+    # 使わない（Noneのまま）。編集済み動画は元のstart_s/end_sではなく「区間の長さの累積」で
+    # 章区切りとして再解釈する（フロント側、SharePage参照）。
+    segments: list[SegmentEffective] | None = None
 
 
 class StatsHighlight(BaseModel):
